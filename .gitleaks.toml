@@ -1,0 +1,18 @@
+title = "Household gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local-only and generated files that are never committed"
+paths = [
+  '''node_modules''',
+  '''(^|/)dist/''',
+  '''(^|/)dev-dist/''',
+  '''(^|/)coverage/''',
+  '''package-lock\.json''',
+  '''prototype\.dc\.html''',
+  '''PROMPT\.md''',
+  '''CLAUDE\.md''',
+  '''\.env\.local''',
+]

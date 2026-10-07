@@ -1,0 +1,27 @@
+# Dependencies and build output
+node_modules/
+dist/
+dev-dist/
+coverage/
+*.tsbuildinfo
+
+# Local environment (only the empty example is committed)
+.env*
+!.env.example
+
+# Private / local-only files — never commit
+PROMPT.md
+prototype.dc.html
+CLAUDE.md
+files.zip
+.claude/settings.local.json
+private/
+household-backup-*.json
+
+# Logs and editor noise
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/

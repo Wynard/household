@@ -1,0 +1,97 @@
+/* Design tokens — "enamel kitchenware". Copied from the approved prototype. */
+:root {
+  /* Base */
+  --bg: #f4f6f8; /* cool white page */
+  --surface: #ffffff; /* cards, sheets */
+  --surface-2: #f4f6f8; /* inset rows, staple marks */
+  --track: #e4e8ee; /* segmented control, bar tracks */
+  --ink: #19202e; /* text, FAB */
+  --ink-2: #3e4757; /* softer text in cards */
+  --muted: #566070; /* secondary text */
+  --line: #dce1e8; /* borders */
+  --line-strong: #9aa6b8; /* dashed borders, chevrons */
+  --disabled: #7d8898; /* disabled primary buttons */
+  --off: #b8c1ce; /* switch track off, disabled arrows */
+
+  /* Cobalt (primary) */
+  --cobalt: #1f4fa8;
+  --cobalt-hover: #163a7d;
+  --cobalt-soft: #e4ebf7;
+  --cobalt-ink: #163a7d; /* text on soft cobalt */
+  --cobalt-wash: #f2f6fc; /* current cooking step */
+
+  /* Saffron (running low, consumption charts) */
+  --saffron: #e8b030;
+  --saffron-soft: #fbf0d2;
+  --saffron-ink: #6b4a00;
+  --saffron-deep: #b07d00; /* favourite star outline */
+
+  /* Red (out, destructive) */
+  --red: #b3261e;
+  --red-soft: #f8e1df;
+
+  --on-cobalt: #ffffff;
+  /* The enamel plate (pot balance) and rim keep the brand cobalt in both themes */
+  --plate: #1f4fa8;
+  --on-plate: #ffffff;
+  --fab: #19202e;
+  --on-fab: #ffffff;
+  --scrim: rgba(25, 32, 46, 0.45);
+  --shadow-fab: 0 6px 18px rgba(25, 32, 46, 0.35);
+
+  /* Type */
+  --font-display:
+    'Bricolage Grotesque Variable', 'Bricolage Grotesque', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Shape */
+  --r-sm: 10px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --rim: 6px; /* the cobalt rim at the top of every screen */
+  --tap: 44px; /* minimum touch target */
+  --page-max: 560px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11151d;
+    --surface: #1a202b;
+    --surface-2: #222937;
+    --track: #2a3241;
+    --ink: #eef1f6;
+    --ink-2: #c9d0dc;
+    --muted: #a0aaba;
+    --line: #2f3847;
+    --line-strong: #5a6578;
+    --disabled: #4a5466;
+    --off: #4a5466;
+
+    --cobalt: #6f9bff;
+    --cobalt-hover: #94b5ff;
+    --cobalt-soft: #1f2d4a;
+    --cobalt-ink: #b9cdff;
+    --cobalt-wash: #18233a;
+
+    --saffron: #e8b030;
+    --saffron-soft: #3a2f14;
+    --saffron-ink: #f3d58a;
+    --saffron-deep: #e8b030;
+
+    --red: #ff8a80;
+    --red-soft: #3d1f1d;
+
+    --on-cobalt: #0b1220;
+    --plate: #2557b8;
+    --on-plate: #ffffff;
+    --fab: #eef1f6;
+    --on-fab: #11151d;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --shadow-fab: 0 6px 18px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
