@@ -3,8 +3,27 @@
 import type { ActionDef } from './types';
 import { adjustStock } from './stock';
 import { addCategory, addSubcategory, deleteItem, mergeItems, moveItems, upsertItem } from './items';
+import {
+  addRecipeCategory,
+  cookRecipe,
+  deleteRecipe,
+  setRecipeCategories,
+  toggleFavourite,
+  upsertRecipe,
+} from './recipes';
+import { addToShoppingList } from './shopping';
+import { removePlanEntry, setPlanEntries } from './plan';
 
 export const ACTIONS = {
+  setPlanEntries,
+  removePlanEntry,
+  toggleFavourite,
+  setRecipeCategories,
+  addRecipeCategory,
+  upsertRecipe,
+  deleteRecipe,
+  cookRecipe,
+  addToShoppingList,
   adjustStock,
   upsertItem,
   deleteItem,
