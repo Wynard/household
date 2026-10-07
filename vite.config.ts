@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // Content-Security-Policy, delivered as a <meta> tag because GitHub Pages
 // cannot send HTTP headers. Every allowed source is explained in SECURITY.md.
@@ -39,8 +40,58 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     envPrefix: ['VITE_', 'HH_'],
-    plugins: [react(), cspPlugin()],
-    build: { sourcemap: false, target: 'es2022' },
+    plugins: [
+      react(),
+      cspPlugin(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        // an external registerSW.js keeps the page free of inline scripts (CSP)
+        injectRegister: 'script',
+        includeAssets: ['icon.svg', 'apple-touch-icon.png', 'favicon-32.png', 'licenses/*.txt'],
+        manifest: {
+          name: 'Household',
+          short_name: 'Household',
+          description: 'Stock, recipes, shopping and a shared money pot for two.',
+          lang: 'en',
+          start_url: '.',
+          scope: '.',
+          display: 'standalone',
+          orientation: 'portrait',
+          background_color: '#F4F6F8',
+          theme_color: '#1F4FA8',
+          icons: [
+            { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
+            { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
+        },
+        workbox: {
+          // Only the app's own static files are cached. Drive and Gemini responses are never
+          // cached (they're cross-origin and not matched by any rule), and navigations go to
+          // the network first so a new version shows up right away.
+          globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,txt}'],
+          navigateFallback: null,
+          runtimeCaching: [
+            {
+              urlPattern: ({ request, sameOrigin }) => sameOrigin && request.mode === 'navigate',
+              handler: 'NetworkFirst',
+              options: { cacheName: 'hh-pages', networkTimeoutSeconds: 4 },
+            },
+          ],
+          cleanupOutdatedCaches: true,
+        },
+      }),
+    ],
+    build: {
+      sourcemap: false,
+      target: 'es2022',
+      rollupOptions: {
+        output: {
+          manualChunks: (id) =>
+            id.includes('node_modules') && !id.includes('@fontsource') ? 'vendor' : undefined,
+        },
+      },
+    },
     server: { port: 5173, strictPort: true },
     preview: { port: 4173, strictPort: true },
     test: {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DataProvider } from './data';
@@ -14,10 +14,33 @@ import { StockScreen } from '../features/stock/StockScreen';
 import { RecipesScreen } from '../features/recipes/RecipesScreen';
 import { RecipeDetail } from '../features/recipes/RecipeDetail';
 import { ShoppingScreen } from '../features/shopping/ShoppingScreen';
-import { SettingsRoutes } from '../features/settings/SettingsRoutes';
+
 import { BudgetScreen } from '../features/budget/BudgetScreen';
-import { InsightsScreen } from '../features/insights/InsightsScreen';
-import { AssistantHost } from '../features/assistant/Assistant';
+import { Loading } from '../ui/controls';
+import { useAssistantUi } from './assistantUi';
+
+// Less-used areas load on demand to keep the first load small on phones.
+const SettingsRoutes = lazy(() =>
+  import('../features/settings/SettingsRoutes').then((m) => ({ default: m.SettingsRoutes })),
+);
+const InsightsScreen = lazy(() =>
+  import('../features/insights/InsightsScreen').then((m) => ({ default: m.InsightsScreen })),
+);
+const AssistantHost = lazy(() =>
+  import('../features/assistant/Assistant').then((m) => ({ default: m.AssistantHost })),
+);
+
+/** Loads the Assistant code the first time it's opened. */
+function LazyAssistant() {
+  const ui = useAssistantUi();
+  const [wanted, setWanted] = useState(false);
+  if (ui.isOpen && !wanted) setWanted(true);
+  return wanted ? (
+    <Suspense fallback={null}>
+      <AssistantHost />
+    </Suspense>
+  ) : null;
+}
 
 export function makeQueryClient() {
   return new QueryClient({
@@ -51,9 +74,23 @@ function Routed() {
         <Route path="/recipes/:id" element={<RecipeDetail />} />
         <Route path="/shopping" element={<ShoppingScreen />} />
         <Route path="/budget" element={<BudgetScreen />} />
-        <Route path="/insights" element={<InsightsScreen />} />
+        <Route
+          path="/insights"
+          element={
+            <Suspense fallback={<Loading />}>
+              <InsightsScreen />
+            </Suspense>
+          }
+        />
       </Route>
-      <Route path="/settings/*" element={<SettingsRoutes />} />
+      <Route
+        path="/settings/*"
+        element={
+          <Suspense fallback={<Loading />}>
+            <SettingsRoutes />
+          </Suspense>
+        }
+      />
       <Route path="*" element={<Navigate to="/stock" replace />} />
     </Routes>
   );
@@ -82,7 +119,7 @@ export function AppShell({
                 <ToastProvider>
                   {banners}
                   <Routed />
-                  <AssistantHost />
+                  <LazyAssistant />
                 </ToastProvider>
               </Frame>
             </AssistantUiProvider>

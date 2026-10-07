@@ -12,7 +12,8 @@ This repository is public, so it must never contain anything personal or secret.
 - Seed and test data use fictional people and `@example.com` addresses only.
 - Secret scanning in three layers: a gitleaks pre-commit hook, the same check plus an email check in CI before deploy
   (`npm run check:privacy`), and GitHub secret scanning with push protection.
-- Commits use a neutral name, a GitHub no-reply address and UTC timestamps.
+- Commits use a neutral name, a GitHub no-reply address and UTC timestamps. The check also accepts GitHub's own web-flow
+  committer (merges made on github.com), which isn't personal.
 - If something sensitive is ever committed, treat it as public permanently: rotate the key first, then rewrite history.
 
 ## Website hardening
@@ -36,6 +37,15 @@ Also: the app refuses to render inside a frame (frame-busting, since `frame-ance
 
 All user, receipt, web-page and AI content is rendered as text through React. `dangerouslySetInnerHTML` and `innerHTML` are
 banned by lint. Images and links are never rendered from AI output. Recipe source links are kept only if they are `https:`.
+
+## CI and dependencies
+
+- The GitHub Actions workflow runs only on pushes to `main` (and by hand), never on pull requests from forks. It has
+  `contents: read` and, for the deploy job only, `pages: write` and `id-token: write`.
+- Every third-party action is pinned to a full commit SHA. gitleaks is downloaded with a pinned SHA-256 checksum.
+- The build fails on any secret, any non-allowed email, any non-UTC or non-neutral commit identity, high or critical
+  `npm audit` findings in runtime dependencies, failing tests, or source maps in the output.
+- Dependabot keeps npm packages and GitHub Actions up to date.
 
 ## Sign-in, tokens and local storage
 

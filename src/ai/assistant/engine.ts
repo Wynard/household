@@ -59,12 +59,10 @@ export function systemPrompt(ctx: Ctx, screen: ScreenInfo, pseudo: Pseudonymiser
 export async function runTurn(input: TurnInput): Promise<TurnOutput> {
   const pseudo = new Pseudonymiser(input.ctx.snap.household.members);
   const contents: Content[] = [
-    ...input.history
-      .slice(-12)
-      .map((m): Content => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: pseudo.hide(m.text) }],
-      })),
+    ...input.history.slice(-12).map((m): Content => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: pseudo.hide(m.text) }],
+    })),
     { role: 'user', parts: [{ text: pseudo.hide(input.text) }] },
   ];
   const cards: Card[] = [];

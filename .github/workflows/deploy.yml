@@ -1,0 +1,85 @@
+# Build, check and deploy to GitHub Pages on every push to main.
+# Minimal permissions, third-party actions pinned to full commit SHAs, no
+# pull_request triggers (so nothing runs for forks).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+      SKIP_SIMPLE_GIT_HOOKS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the privacy check scans the whole history
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install gitleaks (checksum pinned)
+        run: |
+          curl -sSLo gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          rm gitleaks.tar.gz
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Privacy check (secrets, emails, commit identities)
+        run: npm run check:privacy
+
+      - name: Dependency audit (fail on high or critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Typecheck, lint, test
+        run: npm run check
+
+      - name: Build
+        env:
+          VITE_BASE: ${{ github.event.repository.name }}
+          VITE_USE_MOCK: 'false'
+          HH_GOOGLE_CLIENT_ID: ${{ vars.HH_GOOGLE_CLIENT_ID }}
+          HH_PICKER_API_KEY: ${{ vars.HH_PICKER_API_KEY }}
+          HH_GOOGLE_PROJECT_NUMBER: ${{ vars.HH_GOOGLE_PROJECT_NUMBER }}
+        run: npm run build
+
+      - name: No source maps in the output
+        run: '! find dist -name "*.map" | grep .'
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

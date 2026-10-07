@@ -118,7 +118,9 @@ if (!staged) {
       }
       const emails = line.match(EMAIL) || [];
       for (const e of emails) {
-        if (!/@users\.noreply\.github\.com$/i.test(e)) {
+        // GitHub's own web-flow committer (merges made on github.com) isn't personal data
+        const githubWebFlow = e.toLowerCase() === ['noreply', 'github.com'].join('@');
+        if (!/@users\.noreply\.github\.com$/i.test(e) && !githubWebFlow) {
           fail(`commit identity uses a non-noreply email: ${e}`);
         }
       }
