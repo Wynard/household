@@ -418,3 +418,31 @@ export function describeCounts(d: Record<string, unknown>): string {
   if ('items' in d) return plural(n('items'), 'entry', 'entries');
   return 'data';
 }
+
+/**
+ * The partner's phone joins: if their email isn't a member yet, they take the
+ * partner slot the creator set up (or are added when there's room).
+ */
+export const joinAsMember = defineAction({
+  name: 'joinAsMember',
+  input: z.object({
+    email: z.string().min(3),
+    name: z.string().trim().min(1),
+    replaceEmail: z.string().optional(),
+  }),
+  plan(ctx, { email, name, replaceEmail }) {
+    const list = ctx.snap.household.members;
+    if (list.some((m) => m.email === email))
+      return { title: 'Join', lines: [], ops: [], blocked: "You're already in this household." };
+    let next = list;
+    if (replaceEmail && list.some((m) => m.email === replaceEmail))
+      next = list.map((m) => (m.email === replaceEmail ? { ...m, email } : m));
+    else if (list.length < 2) next = [...list, { email, name, color: list.length ? '#E8B030' : '#1F4FA8' }];
+    else return { title: 'Join', lines: [], ops: [], blocked: 'This household already has two people.' };
+    return {
+      title: `Join as ${next.find((m) => m.email === email)?.name ?? name}`,
+      lines: [],
+      ops: [O.household.set('members', next)],
+    };
+  },
+});

@@ -7,6 +7,8 @@ import { money, num, parseDecimal } from '../../domain/format';
 import { potBalance } from '../../domain/budget';
 import type { Member } from '../../domain/schemas';
 import { SettingsPage } from './common';
+import { prefs } from '../../app/prefs';
+import { driveFolderLink } from '../../storage/drive';
 
 const COLORS = ['#1F4FA8', '#E8B030', '#2E7D5B', '#B3261E', '#7A4FB0', '#566070'];
 
@@ -133,6 +135,27 @@ export function DeviceSettings({ children }: { children?: React.ReactNode }) {
     <SettingsPage title="This phone" hint="These settings stay on this phone only.">
       {children}
       {session.mode === 'mock' && <MockUserSwitch />}
+      {session.mode === 'google' && prefs.folderId() && (
+        <>
+          <h2 className="group-title">Household folder</h2>
+          <div className="card card-pad stack" style={{ gap: 10 }}>
+            <a
+              className="btn btn-outline btn-md"
+              href={driveFolderLink(prefs.folderId()!)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open Household Data in Google Drive
+            </a>
+            <span className="small muted">
+              Share it only with your partner, as an Editor. Never use "anyone with the link".
+            </span>
+            <button type="button" className="btn btn-ghost btn-md" onClick={session.leaveHousehold}>
+              Join a different household
+            </button>
+          </div>
+        </>
+      )}
       <h2 className="group-title">Account</h2>
       <div className="card card-pad stack" style={{ gap: 10 }}>
         <span className="small muted">Signed in as {session.email}</span>

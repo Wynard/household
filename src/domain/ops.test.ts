@@ -93,3 +93,16 @@ describe('ops', () => {
     expect(d.stores).toEqual(['Lidl', 'Penny']);
   });
 });
+
+describe('mapSet', () => {
+  it('sets and removes keys and inverts', () => {
+    const start = { fileIds: { items: 'a' } };
+    const ops: Op[] = [
+      { t: 'mapSet', file: 'household', field: 'fileIds', key: 'plan', value: 'b' },
+      { t: 'mapSet', file: 'household', field: 'fileIds', key: 'items', value: 'c' },
+    ];
+    const { files, inverse } = applyOpsToFiles({ household: start }, ops);
+    expect(files.household).toEqual({ fileIds: { items: 'c', plan: 'b' } });
+    expect(applyOpsToFiles(files, inverse).files.household).toEqual(start);
+  });
+});

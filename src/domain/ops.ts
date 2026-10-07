@@ -31,6 +31,8 @@ export type Op =
   | { t: 'inc'; file: DataFile; coll: string; id: string; field: string; by: number; min?: number }
   | { t: 'remove'; file: DataFile; coll: string; id: string }
   | { t: 'setField'; file: DataFile; field: string; value: unknown }
+  /** Sets (or with value null, removes) one key of an object field, e.g. household.fileIds. */
+  | { t: 'mapSet'; file: DataFile; field: string; key: string; value: unknown }
   | { t: 'listAdd'; file: DataFile; field: string; value: string; index?: number }
   | { t: 'listRemove'; file: DataFile; field: string; value: string }
   | { t: 'listRename'; file: DataFile; field: string; from: string; to: string }
@@ -151,6 +153,22 @@ export function applyOne(data: FileObj, op: Op): { data: FileObj; inverse: Op[];
       return {
         data: next,
         inverse: had ? [{ t: 'setField', file: op.file, field: op.field, value: old }] : [],
+        applied: true,
+      };
+    }
+    case 'mapSet': {
+      const cur = (data[op.field] && typeof data[op.field] === 'object' ? data[op.field] : {}) as Record<
+        string,
+        unknown
+      >;
+      const had = op.key in cur;
+      const old = cur[op.key];
+      const next = { ...cur };
+      if (op.value === null) delete next[op.key];
+      else next[op.key] = op.value;
+      return {
+        data: { ...data, [op.field]: next },
+        inverse: [{ t: 'mapSet', file: op.file, field: op.field, key: op.key, value: had ? old : null }],
         applied: true,
       };
     }

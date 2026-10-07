@@ -7,6 +7,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import { config } from './config';
 import { MockApp } from './app/App';
+import { GoogleApp } from './app/GoogleApp';
 
 const root = document.getElementById('root')!;
 
@@ -26,5 +27,5 @@ if (framed()) {
   p.textContent = 'Household can only be opened directly, not inside another page.';
   root.replaceChildren(p);
 } else {
-  createRoot(root).render(<StrictMode>{config.useMock ? <MockApp /> : <MockApp />}</StrictMode>);
+  createRoot(root).render(<StrictMode>{config.useMock ? <MockApp /> : <GoogleApp />}</StrictMode>);
 }

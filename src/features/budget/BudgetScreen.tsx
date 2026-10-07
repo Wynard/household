@@ -34,6 +34,7 @@ import { bars } from '../../domain/insights';
 import { isAssistantActor, type Snapshot } from '../../domain/actions';
 import type { Contribution, Member } from '../../domain/schemas';
 import { PurchaseEditor, draftFromPurchase } from './PurchaseEditor';
+import { PhotoNotSharedError, driveFileLink } from '../../storage/drive';
 
 type Row = LedgerEntry & { balanceAfter: number };
 type Filter =
@@ -707,6 +708,7 @@ function ReceiptPhotos({ ids, onClose }: { ids: string[]; onClose: () => void })
   const store = useStore();
   const [urls, setUrls] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [notShared, setNotShared] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
     const made: string[] = [];
@@ -715,7 +717,11 @@ function ReceiptPhotos({ ids, onClose }: { ids: string[]; onClose: () => void })
         made.push(...u);
         if (alive) setUrls(u);
       })
-      .catch((e: unknown) => alive && setErr(e instanceof Error ? e.message : "Couldn't load the photo."));
+      .catch((e: unknown) => {
+        if (!alive) return;
+        if (e instanceof PhotoNotSharedError) setNotShared(ids);
+        else setErr(e instanceof Error ? e.message : "Couldn't load the photo.");
+      });
     return () => {
       alive = false;
       made.forEach((u) => URL.revokeObjectURL(u));
@@ -724,7 +730,25 @@ function ReceiptPhotos({ ids, onClose }: { ids: string[]; onClose: () => void })
   return (
     <Sheet onClose={onClose} title="Receipt" labelledBy="rcpt-title">
       {err && <p className="problem">{err}</p>}
-      {!err && !urls.length && <Loading text="Loading the photo…" />}
+      {notShared.length > 0 && (
+        <div className="stack">
+          <p className="muted" style={{ margin: 0 }}>
+            This photo was added from the other phone, so Google only lets you open it in Drive.
+          </p>
+          {notShared.map((id, i) => (
+            <a
+              key={id}
+              className="btn btn-outline btn-md"
+              href={driveFileLink(id)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open photo {notShared.length > 1 ? i + 1 : ''} in Google Drive
+            </a>
+          ))}
+        </div>
+      )}
+      {!err && !notShared.length && !urls.length && <Loading text="Loading the photo…" />}
       {urls.map((u, i) => (
         <img
           key={u}

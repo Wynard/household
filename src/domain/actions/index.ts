@@ -47,6 +47,7 @@ import {
   setMonthlyTarget,
   updateMember,
   restoreBackup,
+  joinAsMember,
 } from './settings';
 
 export const ACTIONS = {
@@ -75,6 +76,7 @@ export const ACTIONS = {
   setMonthlyTarget,
   updateMember,
   restoreBackup,
+  joinAsMember,
   setPlanEntries,
   removePlanEntry,
   toggleFavourite,

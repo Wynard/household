@@ -10,6 +10,8 @@ export interface Session {
   /** Google mode: true while the token needs a reconnect */
   needsReconnect?: boolean;
   reconnect?: () => void;
+  /** Google mode: forget this household on this phone and pick another */
+  leaveHousehold?: () => void;
 }
 
 const Ctx = createContext<Session | null>(null);

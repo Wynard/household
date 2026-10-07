@@ -18,21 +18,21 @@ import { SettingsRoutes } from '../features/settings/SettingsRoutes';
 import { BudgetScreen } from '../features/budget/BudgetScreen';
 import { InsightsScreen } from '../features/insights/InsightsScreen';
 
-function makeQueryClient() {
+export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
         // Refetch when the app regains focus/visibility so you see your partner's changes.
         refetchOnWindowFocus: true,
         staleTime: 5_000,
-        retry: 1,
+        retry: (count, e) => count < 1 && !(e instanceof Error && /Access|Auth/.test(e.name)),
       },
     },
   });
 }
 
 /** Frame with the cobalt rim, shared by every screen. */
-function Frame({ children }: { children: ReactNode }) {
+export function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="app" id="app-frame">
       <div className="rim" />
@@ -55,6 +55,39 @@ function Routed() {
       <Route path="/settings/*" element={<SettingsRoutes />} />
       <Route path="*" element={<Navigate to="/stock" replace />} />
     </Routes>
+  );
+}
+
+/** Everything inside the data layer: router, assistant state, frame, toasts, screens. */
+export function AppShell({
+  qc,
+  store,
+  session,
+  banners,
+}: {
+  qc: QueryClient;
+  store: DataStore;
+  session: Session;
+  /** status banners shown above every screen (reconnect, file access, sharing) */
+  banners?: ReactNode;
+}) {
+  return (
+    <QueryClientProvider client={qc}>
+      <SessionProvider value={session}>
+        <DataProvider store={store}>
+          <HashRouter>
+            <AssistantUiProvider>
+              <Frame>
+                <ToastProvider>
+                  {banners}
+                  <Routed />
+                </ToastProvider>
+              </Frame>
+            </AssistantUiProvider>
+          </HashRouter>
+        </DataProvider>
+      </SessionProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -83,22 +116,5 @@ export function MockApp() {
     }),
     [email],
   );
-
-  return (
-    <QueryClientProvider client={qc}>
-      <SessionProvider value={session}>
-        <DataProvider store={store}>
-          <HashRouter>
-            <AssistantUiProvider>
-              <Frame>
-                <ToastProvider>
-                  <Routed />
-                </ToastProvider>
-              </Frame>
-            </AssistantUiProvider>
-          </HashRouter>
-        </DataProvider>
-      </SessionProvider>
-    </QueryClientProvider>
-  );
+  return <AppShell qc={qc} store={store} session={session} />;
 }

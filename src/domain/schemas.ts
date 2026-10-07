@@ -53,6 +53,8 @@ export const householdPayload = z.object({
   recipeCategories: z.array(z.string().min(1)),
   /** Years that have a budget-YYYY.json / usage-YYYY.json file. */
   years: z.array(z.number().int()),
+  /** Drive file ID of every data file, so each phone can tell "not created yet" from "not shared with me yet". */
+  fileIds: z.record(z.string(), z.string()).optional(),
 });
 
 // ---------- items.json ----------
