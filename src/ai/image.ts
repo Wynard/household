@@ -53,9 +53,7 @@ export interface CompressedPhoto {
   height: number;
 }
 
-async function decode(
-  file: Blob,
-): Promise<{
+async function decode(file: Blob): Promise<{
   draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
   width: number;
   height: number;

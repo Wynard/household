@@ -478,12 +478,15 @@ function LedgerRow({
   );
 }
 
-function MoneySheet({
+export function MoneySheet({
   entry,
+  prefill,
   onClose,
   onSaved,
 }: {
   entry?: Contribution;
+  /** values for a new contribution (e.g. from the Assistant) */
+  prefill?: { amount?: number; by?: string; date?: string; note?: string };
   onClose: () => void;
   onSaved: (date: string) => void;
 }) {
@@ -491,10 +494,11 @@ function MoneySheet({
   const { run } = useRun();
   const { email: meEmail } = useSession();
   const members = snap?.household.members ?? [];
-  const [amount, setAmount] = useState(entry ? num(entry.amount) : '');
-  const [by, setBy] = useState(entry?.by ?? meEmail);
-  const [date, setDate] = useState(entry?.date ?? todayISO());
-  const [note, setNote] = useState(entry?.note ?? '');
+  const src = entry ?? prefill;
+  const [amount, setAmount] = useState(src?.amount ? num(src.amount) : '');
+  const [by, setBy] = useState(src?.by ?? meEmail);
+  const [date, setDate] = useState(src?.date ?? todayISO());
+  const [note, setNote] = useState(src?.note ?? '');
   const v = parseDecimal(amount);
   const ok = v > 0 && !!by;
   return (

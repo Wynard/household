@@ -17,6 +17,7 @@ import { ShoppingScreen } from '../features/shopping/ShoppingScreen';
 import { SettingsRoutes } from '../features/settings/SettingsRoutes';
 import { BudgetScreen } from '../features/budget/BudgetScreen';
 import { InsightsScreen } from '../features/insights/InsightsScreen';
+import { AssistantHost } from '../features/assistant/Assistant';
 
 export function makeQueryClient() {
   return new QueryClient({
@@ -81,6 +82,7 @@ export function AppShell({
                 <ToastProvider>
                   {banners}
                   <Routed />
+                  <AssistantHost />
                 </ToastProvider>
               </Frame>
             </AssistantUiProvider>
