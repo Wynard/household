@@ -57,7 +57,11 @@ export function InsightsScreen() {
 
   const budgets = useMemo(() => (snap ? Object.values(snap.budgets) : []), [snap]);
   const usage = useMemo(() => (snap ? Object.values(snap.usage) : []), [snap]);
-  const sp = useMemo(() => spendingInsights(budgets, ym, f), [budgets, ym, f]);
+  const inProgress = ym === currentMonth();
+  const sp = useMemo(
+    () => spendingInsights(budgets, ym, f, inProgress ? { upToDay: new Date().getDate() } : {}),
+    [budgets, ym, f, inProgress],
+  );
   const us = useMemo(() => usageInsights(usage, budgets, ym, f), [usage, budgets, ym, f]);
   if (!snap) return <Loading text="Adding things up…" />;
 
@@ -157,11 +161,11 @@ export function InsightsScreen() {
               {sp.comparison.direction === 'none'
                 ? sp.comparison.prevTotal === 0 &&
                   budgets.some((b) => b.purchases.some((p) => p.date.startsWith(shiftMonth(ym, -1))))
-                  ? `Nothing like this in ${prevName}`
+                  ? `Nothing like this ${inProgress ? `by this time in ${prevName}` : `in ${prevName}`}`
                   : 'No earlier month to compare with'
                 : sp.comparison.direction === 'same'
-                  ? `About the same as ${prevName}`
-                  : `${sp.comparison.pct}% ${sp.comparison.direction} than ${prevName}`}
+                  ? `About the same as ${inProgress ? `this time in ${prevName}` : prevName}`
+                  : `${sp.comparison.pct}% ${sp.comparison.direction} than ${inProgress ? `this time in ${prevName}` : prevName}`}
             </span>
           </div>
           {sp.total > 0 ? (
@@ -176,7 +180,7 @@ export function InsightsScreen() {
               <h2 className="h2">Week by week</h2>
               <WeekBars weeks={sp.weeks} />
               <h2 className="h2">Who spent it</h2>
-              <BarList bars={sp.byPerson} label={nameOf} color={colorOf} showPct />
+              <BarList bars={sp.byPerson} label={nameOf} color={colorOf} />
               <h2 className="h2">Where</h2>
               <BarList bars={sp.byStore} color={() => 'var(--muted)'} onPick={(s) => set({ store: s })} />
               <h2 className="h2">Top items</h2>

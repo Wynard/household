@@ -105,9 +105,6 @@ export function SettingsHome() {
           onClick={() => setImporting(true)}
         />
       </div>
-      <p className="small muted" style={{ marginTop: 24 }}>
-        Fonts: Bricolage Grotesque and Atkinson Hyperlegible, SIL Open Font License (see licenses folder).
-      </p>
       {importing && <ImportSheet onClose={() => setImporting(false)} />}
     </SettingsPage>
   );

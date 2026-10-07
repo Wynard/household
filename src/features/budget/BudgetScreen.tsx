@@ -182,9 +182,6 @@ export function BudgetScreen() {
             </div>
           </>
         )}
-        <div className="muted" style={{ fontSize: 15 }}>
-          Put in {money(sum.contributed)} this month
-        </div>
         <div className="stack" style={{ gap: 4, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
           {snap.household.members.map((m) => (
             <button key={m.email} type="button" className="row person-row" onClick={() => setPerson(m.email)}>
@@ -313,14 +310,12 @@ export function BudgetScreen() {
           </div>
         </>
       )}
-      <button
-        type="button"
-        className="btn btn-ghost btn-md btn-block"
-        style={{ marginTop: 16 }}
-        onClick={() => setAdjust(true)}
-      >
-        The pot doesn't match the real money? Adjust it
-      </button>
+      <p className="small muted" style={{ marginTop: 16, textAlign: 'center' }}>
+        The pot doesn't match the real money?{' '}
+        <button type="button" className="link-btn" style={{ minHeight: 32 }} onClick={() => setAdjust(true)}>
+          Adjust it
+        </button>
+      </p>
 
       {money_ && (
         <MoneySheet

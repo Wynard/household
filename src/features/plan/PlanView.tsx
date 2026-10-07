@@ -117,13 +117,13 @@ export function PlanView() {
           <IconNext />
         </button>
       </div>
-      <p className="muted" style={{ margin: '0 0 14px', fontSize: 15 }}>
-        Earlier meals get first pick of the stock.
-      </p>
       {open.size > 0 ? (
         <div className="callout callout-saffron stack" style={{ gap: 12 }}>
           <div className="bold" style={{ fontSize: 17 }}>
             This week's meals need {plural(open.size, 'more thing')} than you have.
+            <div style={{ fontWeight: 400, fontSize: 15, marginTop: 2 }}>
+              Earlier meals get first pick of the stock.
+            </div>
           </div>
           <button type="button" className="btn btn-ink btn-md" onClick={addWeek}>
             Add them to the shopping list

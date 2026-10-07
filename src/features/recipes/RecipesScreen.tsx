@@ -92,7 +92,6 @@ export function RecipesScreen() {
         ).includes(q),
     )
     .sort((a, b) => Number(b.r.favourite) - Number(a.r.favourite) || a.r.title.localeCompare(b.r.title));
-  const readyN = withAv.filter((x) => x.av.badge === 'ready').length;
 
   return (
     <>
@@ -133,9 +132,6 @@ export function RecipesScreen() {
         <PlanView />
       ) : (
         <>
-          <p className="summary" style={{ marginTop: 0 }}>
-            {readyN} of {withAv.length} ready to cook with what you have
-          </p>
           <input
             type="search"
             className="input search"

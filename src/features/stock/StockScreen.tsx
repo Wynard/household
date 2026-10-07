@@ -123,7 +123,6 @@ export function StockScreen() {
         </Chip>
       </div>
       <div className="row" style={{ marginTop: 12 }}>
-        <span className="small muted">Group by</span>
         <div style={{ width: 210 }}>
           <Seg
             small

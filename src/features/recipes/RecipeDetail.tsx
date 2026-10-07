@@ -105,7 +105,7 @@ export function RecipeDetail() {
         {recipe.title}
       </h1>
       <p className="muted" style={{ margin: '6px 0 10px', fontSize: 15 }}>
-        {mins ? `${mins} min. ` : ''}Amounts change with the servings.
+        {mins ? `${mins} min, serves ${recipe.servings} as written` : `Serves ${recipe.servings} as written`}
       </p>
       <div className="wrap" style={{ gap: 6, marginBottom: 16, alignItems: 'center' }}>
         {recipe.categories.map((c) => (

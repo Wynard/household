@@ -98,10 +98,23 @@ export interface SpendingInsights {
   trend: { ym: string; total: number }[];
 }
 
-export function spendingInsights(budgets: BudgetFile[], ym: string, f: Filters): SpendingInsights {
+/**
+ * `upToDay`: for a month still in progress, compare with the same days of the
+ * previous month (1st to that day) instead of the whole month.
+ */
+export function spendingInsights(
+  budgets: BudgetFile[],
+  ym: string,
+  f: Filters,
+  opts: { upToDay?: number } = {},
+): SpendingInsights {
   const lines = spendLines(budgets, ym, f);
   const total = round2(lines.reduce((t, l) => t + l.price, 0));
-  const prevTotal = round2(spendLines(budgets, shiftMonth(ym, -1), f).reduce((t, l) => t + l.price, 0));
+  const prevTotal = round2(
+    spendLines(budgets, shiftMonth(ym, -1), f)
+      .filter((l) => !opts.upToDay || Number(l.date.slice(8, 10)) <= opts.upToDay)
+      .reduce((t, l) => t + l.price, 0),
+  );
   const level = drillLevel(f);
   const weeks = [0, 0, 0, 0, 0];
   for (const l of lines) weeks[weekBucket(l.date)] += l.price;

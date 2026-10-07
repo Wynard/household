@@ -208,10 +208,6 @@ export function ShoppingScreen() {
           >
             <IconCheck size={18} />I bought these, add to stock
           </button>
-          <p className="small muted" style={{ marginTop: 8 }}>
-            Or scan the receipt with the Assistant: it checks off the list and updates stock and the budget in
-            one go.
-          </p>
         </>
       )}
       {toBuy.length === 0 && cart.length === 0 && <EmptyState>Nothing on the list.</EmptyState>}

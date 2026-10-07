@@ -194,3 +194,13 @@ describe('usage insights', () => {
     expect(u).toMatchObject({ totalValue: 10, meals: 1 });
   });
 });
+
+describe('comparison for a month in progress', () => {
+  it('compares with the same days of the previous month', () => {
+    // up to the 2nd: September had nothing by the 2nd (p1 is on the 3rd)
+    const s = spendingInsights([budget], '2026-10', {}, { upToDay: 2 });
+    expect(s.comparison).toEqual({ pct: null, direction: 'none', prevTotal: 0 });
+    const s3 = spendingInsights([budget], '2026-10', {}, { upToDay: 3 });
+    expect(s3.comparison.prevTotal).toBe(50);
+  });
+});

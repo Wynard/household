@@ -1477,3 +1477,23 @@ img {
   background: var(--red);
   animation: hh-pulse 1s ease-in-out infinite alternate;
 }
+/* long labels wrap instead of overflowing on narrow phones (heights become minimums) */
+.btn-block,
+.btn-ghost {
+  white-space: normal;
+  text-align: center;
+  height: auto;
+  min-height: 52px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.btn-md.btn-block,
+.btn-md.btn-ghost {
+  min-height: 48px;
+}
+.btn-sm.btn-ghost {
+  min-height: 40px;
+}
+.btn-lg.btn-block {
+  min-height: 56px;
+}
