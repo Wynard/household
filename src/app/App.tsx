@@ -13,6 +13,7 @@ import { buildSeed, SEED_MEMBERS } from '../storage/seed';
 import { StockScreen } from '../features/stock/StockScreen';
 import { RecipesScreen } from '../features/recipes/RecipesScreen';
 import { RecipeDetail } from '../features/recipes/RecipeDetail';
+import { ShoppingScreen } from '../features/shopping/ShoppingScreen';
 import { Placeholder } from '../features/Placeholder';
 
 function makeQueryClient() {
@@ -45,7 +46,7 @@ function Routed() {
         <Route path="/stock" element={<StockScreen />} />
         <Route path="/recipes" element={<RecipesScreen />} />
         <Route path="/recipes/:id" element={<RecipeDetail />} />
-        <Route path="/shopping" element={<Placeholder title="Shopping" />} />
+        <Route path="/shopping" element={<ShoppingScreen />} />
         <Route path="/budget/*" element={<Placeholder title="Budget" />} />
         <Route path="/insights" element={<Placeholder title="Insights" />} />
       </Route>

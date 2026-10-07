@@ -11,7 +11,13 @@ import {
   toggleFavourite,
   upsertRecipe,
 } from './recipes';
-import { addToShoppingList } from './shopping';
+import {
+  addToShoppingList,
+  checkShoppingItems,
+  removeShoppingItems,
+  stockFromShopping,
+  updateShoppingItem,
+} from './shopping';
 import { removePlanEntry, setPlanEntries } from './plan';
 
 export const ACTIONS = {
@@ -24,6 +30,10 @@ export const ACTIONS = {
   deleteRecipe,
   cookRecipe,
   addToShoppingList,
+  checkShoppingItems,
+  updateShoppingItem,
+  removeShoppingItems,
+  stockFromShopping,
   adjustStock,
   upsertItem,
   deleteItem,
