@@ -9,7 +9,7 @@ import {
 } from '../domain/defaults';
 import type { DataFile } from '../domain/files';
 import { budgetFileName, usageFileName } from '../domain/files';
-import { shiftMonth, todayISO, weekStart, shiftDays } from '../domain/dates';
+import { shiftMonth, todayISO, shiftDays } from '../domain/dates';
 import { toBase } from '../domain/units';
 import {
   SCHEMA_VERSION,
@@ -773,13 +773,12 @@ export function buildSeed(today = todayISO()): Partial<Record<DataFile, unknown>
     files[usageFileName(y)] = { ...env(), year: y, usage: inYear(usage), cooked: inYear(cooked) };
   }
 
-  // this week's plan
-  const mon = weekStart(today);
+  // the next few days' plan
   const plan: PlanEntry[] = [
-    { id: 'e1', date: shiftDays(mon, 0), slot: 'dinner', recipeId: 'tomatopasta', servings: 2 },
-    { id: 'e2', date: shiftDays(mon, 1), slot: 'dinner', recipeId: 'chickenpotatoes', servings: 4 },
-    { id: 'e3', date: shiftDays(mon, 2), slot: 'lunch', recipeId: 'omelette', servings: 2 },
-    { id: 'e4', date: shiftDays(mon, 3), slot: 'dinner', recipeId: 'pancakes', servings: 4 },
+    { id: 'e1', date: today, slot: 'dinner', recipeId: 'tomatopasta', servings: 2 },
+    { id: 'e2', date: shiftDays(today, 1), slot: 'dinner', recipeId: 'chickenpotatoes', servings: 4 },
+    { id: 'e3', date: shiftDays(today, 2), slot: 'lunch', recipeId: 'omelette', servings: 2 },
+    { id: 'e4', date: shiftDays(today, 3), slot: 'dinner', recipeId: 'pancakes', servings: 4 },
   ];
 
   const at = `${today}T07:30:00.000Z`;
