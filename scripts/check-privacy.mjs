@@ -23,7 +23,7 @@ function git(args) {
 
 function findGitleaks() {
   if (process.env.GITLEAKS_BIN && existsSync(process.env.GITLEAKS_BIN)) return process.env.GITLEAKS_BIN;
-  const probe = spawnSync('gitleaks', ['version'], { encoding: 'utf8', shell: process.platform === 'win32' });
+  const probe = spawnSync('gitleaks', ['version'], { encoding: 'utf8' });
   if (probe.status === 0) return 'gitleaks';
   // winget installs outside the PATH of already-open shells
   const local = process.env.LOCALAPPDATA;

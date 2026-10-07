@@ -2,6 +2,10 @@
 // that writes. Writes are per-operation and immediate; concurrency follows 4.3:
 // write with the version we last read; if the other person changed the file
 // meanwhile, re-read it, re-apply our ops on top of their version, and retry.
+//
+// Updates are optimistic: the screen shows the confirmed server copy with every
+// in-flight op applied on top, so steppers respond instantly. If a write fails,
+// its ops drop out of the view again and the caller shows "Try again".
 import type { QueryClient } from '@tanstack/react-query';
 import {
   emptyFile,
@@ -31,10 +35,29 @@ export class CommitError extends Error {
   }
 }
 
+type Rec = Record<string, unknown>;
+
+/** Applies ops to a file; a missing file with an `init` op starts from that. */
+function applyBatch(base: Loaded<unknown>, ops: Op[]) {
+  const hasInit = ops.some((o) => o.t === 'init');
+  let data = (base.version === null && hasInit ? {} : base.data) as Rec;
+  const inverse: Op[] = [];
+  const skipped: Op[] = [];
+  for (const op of ops) {
+    const r = applyOne(data, op);
+    data = r.data;
+    inverse.unshift(...r.inverse);
+    if (!r.applied) skipped.push(op);
+  }
+  return { data, inverse, skipped };
+}
+
 export class DataStore {
   private queue: Promise<unknown> = Promise.resolve();
-  /** Files whose last write failed; ops are kept so "Try again" can resend them. */
-  pending: Op[] | null = null;
+  /** Last version read from or written to storage, per file. */
+  private confirmed = new Map<DataFile, Loaded<unknown>>();
+  /** Op batches applied optimistically but not written yet, per file. */
+  private inFlight = new Map<DataFile, Op[][]>();
 
   constructor(
     public adapter: StorageAdapter,
@@ -42,7 +65,21 @@ export class DataStore {
     private whoAmI: () => string,
   ) {}
 
-  async load<F extends DataFile>(f: F): Promise<Loaded<FileData<F>>> {
+  /** What the screens see: confirmed data + in-flight ops. */
+  private view(f: DataFile): Loaded<unknown> | undefined {
+    const c = this.confirmed.get(f);
+    if (!c) return undefined;
+    const batches = this.inFlight.get(f) ?? [];
+    if (!batches.length) return c;
+    return { data: applyBatch(c, batches.flat()).data, version: c.version };
+  }
+
+  private publish(f: DataFile) {
+    const v = this.view(f);
+    if (v) this.qc.setQueryData(fileKey(f), v);
+  }
+
+  private async read<F extends DataFile>(f: F): Promise<Loaded<FileData<F>>> {
     try {
       const { data, version } = await this.adapter.readJson<unknown>(f);
       return { data: parseFile(f, data), version };
@@ -53,61 +90,75 @@ export class DataStore {
     }
   }
 
+  /** Query function: reads from storage and returns the optimistic view. */
+  async load<F extends DataFile>(f: F): Promise<Loaded<FileData<F>>> {
+    const fresh = await this.read(f);
+    this.confirmed.set(f, fresh);
+    return this.view(f) as Loaded<FileData<F>>;
+  }
+
   cached<F extends DataFile>(f: F): Loaded<FileData<F>> | undefined {
     return this.qc.getQueryData<Loaded<FileData<F>>>(fileKey(f));
   }
 
-  /** Returns the cached file, loading it first if needed. */
+  /** Returns the (optimistic) cached file, loading it first if needed. */
   async ensure<F extends DataFile>(f: F): Promise<Loaded<FileData<F>>> {
     return this.qc.ensureQueryData({ queryKey: fileKey(f), queryFn: () => this.load(f) });
   }
 
   /**
-   * Applies ops to storage. Resolves with the inverse ops (for undo), computed
-   * against the exact versions that were written. Commits are serialised so
-   * our own rapid taps never conflict with each other.
+   * Applies ops: shows them immediately, then writes them. Resolves with the
+   * inverse ops (for undo), computed against the exact versions written.
+   * Commits are serialised so our own rapid taps never conflict.
    */
   commit(ops: Op[]): Promise<{ inverse: Op[]; skipped: Op[] }> {
-    const run = this.queue.then(() => this.doCommit(ops));
+    const groups = groupByFile(ops);
+    const batches = new Map<DataFile, Op[]>();
+    for (const [f, fileOps] of groups) {
+      batches.set(f, fileOps);
+      if (this.confirmed.has(f)) {
+        this.inFlight.set(f, [...(this.inFlight.get(f) ?? []), fileOps]);
+        this.publish(f);
+      }
+    }
+    const run = this.queue.then(() => this.doCommit(batches));
     this.queue = run.catch(() => undefined);
     return run;
   }
 
-  private async doCommit(ops: Op[]): Promise<{ inverse: Op[]; skipped: Op[] }> {
+  private settle(f: DataFile, batch: Op[]) {
+    const list = this.inFlight.get(f);
+    if (list) {
+      const i = list.indexOf(batch);
+      if (i >= 0) list.splice(i, 1);
+    }
+    this.publish(f);
+  }
+
+  private async doCommit(batches: Map<DataFile, Op[]>): Promise<{ inverse: Op[]; skipped: Op[] }> {
     const inverse: Op[] = [];
     const skipped: Op[] = [];
-    const groups = groupByFile(ops);
-    const done: Op[] = [];
+    const remaining = new Map(batches);
     try {
-      for (const [file, fileOps] of groups) {
+      for (const [file, fileOps] of batches) {
         const r = await this.commitFile(file, fileOps);
+        remaining.delete(file);
+        this.settle(file, fileOps);
         inverse.unshift(...r.inverse);
         skipped.push(...r.skipped);
-        done.push(...fileOps);
       }
-      this.pending = null;
       return { inverse, skipped };
     } catch (e) {
-      this.pending = ops.filter((o) => !done.includes(o));
+      // roll back what didn't make it; files already written stay written
+      for (const [f, b] of remaining) this.settle(f, b);
       throw new CommitError(e instanceof Error ? e.message : "Couldn't save the change.", e);
     }
   }
 
   private async commitFile(file: DataFile, ops: Op[]) {
-    let base = this.cached(file) ?? (await this.load(file));
+    let base = this.confirmed.get(file) ?? (await this.read(file));
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      // A file that doesn't exist yet starts from its `init` op when there is one
-      // (e.g. a new year's budget with the carried-over balance), else from defaults.
-      const hasInit = ops.some((o) => o.t === 'init');
-      let data = (base.version === null && hasInit ? {} : base.data) as unknown as Record<string, unknown>;
-      const inverse: Op[] = [];
-      const skipped: Op[] = [];
-      for (const op of ops) {
-        const r = applyOne(data, op);
-        data = r.data;
-        inverse.unshift(...r.inverse);
-        if (!r.applied) skipped.push(op);
-      }
+      const { data, inverse, skipped } = applyBatch(base, ops);
       const next = {
         ...data,
         schemaVersion: SCHEMA_VERSION,
@@ -122,12 +173,13 @@ export class DataStore {
       }
       try {
         const { version } = await this.adapter.writeJson(file, check.data, base.version);
-        this.qc.setQueryData(fileKey(file), { data: check.data, version } satisfies Loaded<unknown>);
+        this.confirmed.set(file, { data: check.data, version });
         return { inverse, skipped };
       } catch (e) {
         if (!(e instanceof ConflictError)) throw e;
-        base = await this.load(file);
-        this.qc.setQueryData(fileKey(file), base);
+        // the other person saved first: take their version and re-apply our ops on top
+        base = await this.read(file);
+        this.confirmed.set(file, base);
       }
     }
     throw new Error(`${fileNameOnDisk(file)} keeps changing. Try again in a moment.`);

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useAnyOverlayOpen } from './overlay';
 
 export interface ToastOpts {
   /** Shows an Undo button */
@@ -31,6 +32,8 @@ const Ctx = createContext<ToastApi | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [t, setT] = useState<ToastState | null>(null);
+  // with a sheet or full-screen flow open, show toasts at the top so they don't cover the form
+  const overlay = useAnyOverlayOpen();
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hide = useCallback(() => setT(null), []);
   const show = useCallback((text: string, opts: ToastOpts = {}) => {
@@ -52,7 +55,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={api}>
       {children}
       {t && (
-        <div className={`toast${t.error ? ' error' : ''}`} role={t.error ? 'alert' : 'status'} key={t.id}>
+        <div
+          className={`toast${t.error ? ' error' : ''}${overlay ? ' top' : ''}`}
+          role={t.error ? 'alert' : 'status'}
+          key={t.id}
+        >
           <span className="grow">{t.text}</span>
           {t.undo && (
             <button
