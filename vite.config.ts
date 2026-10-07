@@ -69,7 +69,9 @@ export default defineConfig(({ mode }) => {
           // Only the app's own static files are cached. Drive and Gemini responses are never
           // cached (they're cross-origin and not matched by any rule), and navigations go to
           // the network first so a new version shows up right away.
-          globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,txt}'],
+          // index.html is NOT precached: the page always comes from the network first (rule below),
+          // so a new deploy (e.g. new build variables) shows up on the next open.
+          globPatterns: ['**/*.{js,css,svg,png,woff,woff2,txt}'],
           navigateFallback: null,
           runtimeCaching: [
             {
