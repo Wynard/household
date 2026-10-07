@@ -32,12 +32,19 @@ export function InsightsScreen() {
   const [params, setParams] = useSearchParams();
   const ym = params.get('m') ?? currentMonth();
   const view: View = params.get('v') === 'use' ? 'use' : 'spend';
-  const f: Filters = {
-    person: params.get('p') ?? undefined,
-    category: params.get('c') ?? undefined,
-    subcategory: params.get('s') ?? undefined,
-    store: view === 'spend' ? (params.get('st') ?? undefined) : undefined,
-  };
+  const pP = params.get('p');
+  const pC = params.get('c');
+  const pS = params.get('s');
+  const pSt = params.get('st');
+  const f: Filters = useMemo(
+    () => ({
+      person: pP ?? undefined,
+      category: pC ?? undefined,
+      subcategory: pS ?? undefined,
+      store: view === 'spend' ? (pSt ?? undefined) : undefined,
+    }),
+    [pP, pC, pS, pSt, view],
+  );
   const set = (patch: Partial<{ ym: string; view: View } & Filters>) =>
     setParams(
       new URLSearchParams(
@@ -50,14 +57,8 @@ export function InsightsScreen() {
 
   const budgets = useMemo(() => (snap ? Object.values(snap.budgets) : []), [snap]);
   const usage = useMemo(() => (snap ? Object.values(snap.usage) : []), [snap]);
-  const sp = useMemo(
-    () => spendingInsights(budgets, ym, f),
-    [budgets, ym, f.person, f.category, f.subcategory, f.store],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
-  const us = useMemo(
-    () => usageInsights(usage, budgets, ym, f),
-    [usage, budgets, ym, f.person, f.category, f.subcategory],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  const sp = useMemo(() => spendingInsights(budgets, ym, f), [budgets, ym, f]);
+  const us = useMemo(() => usageInsights(usage, budgets, ym, f), [usage, budgets, ym, f]);
   if (!snap) return <Loading text="Adding things up…" />;
 
   const members = snap.household.members;
