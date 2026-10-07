@@ -234,6 +234,9 @@ img {
 .num {
   font-variant-numeric: tabular-nums;
 }
+.warn-text {
+  color: var(--saffron-ink);
+}
 .danger-text {
   color: var(--red);
 }
@@ -1496,4 +1499,72 @@ img {
 }
 .btn-lg.btn-block {
   min-height: 56px;
+}
+
+/* Stock sections: sticky headers that fold away (state remembered per section) */
+.stock-section {
+  position: sticky;
+  top: -20px; /* .page has 20px top padding; stick to the very top edge */
+  z-index: 2;
+  margin: 14px -20px 8px;
+  padding: 0 20px;
+  background: var(--bg);
+}
+.stock-section button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+}
+.stock-section button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.stock-section .chev {
+  width: 14px;
+  color: var(--line-strong);
+}
+.stock-section button:disabled .chev {
+  visibility: hidden;
+}
+
+/* Have · Low · Out control for simple items */
+.status-seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(44px, auto);
+  flex-shrink: 0;
+  background: var(--track);
+  border-radius: var(--r-sm);
+  padding: 3px;
+}
+.status-seg button {
+  height: 38px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 14px;
+}
+.status-seg button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--ink);
+}
+.status-seg button[aria-pressed='true'][data-s='low'] {
+  background: var(--saffron-soft);
+  color: var(--saffron-ink);
+}
+.status-seg button[aria-pressed='true'][data-s='out'] {
+  background: var(--red-soft);
+  color: var(--red);
 }

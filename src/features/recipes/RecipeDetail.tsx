@@ -21,7 +21,12 @@ export function amountText(r: IngredientRow): string {
   return r.item ? fmtQty(r.need, r.item.unit) : num(r.need);
 }
 
-function statusText(r: IngredientRow): { text: string; tone: 'ok' | 'bad' | 'muted' } {
+function statusText(r: IngredientRow): { text: string; tone: 'ok' | 'warn' | 'bad' | 'muted' } {
+  if (r.simple) {
+    if (r.status === 'missing') return { text: 'Out, not in the house', tone: 'bad' };
+    if (r.low) return { text: 'Running low, check there is enough', tone: 'warn' };
+    return { text: 'You have it', tone: 'ok' };
+  }
   switch (r.status) {
     case 'staple':
       return { text: 'Pantry staple, not tracked', tone: 'muted' };
@@ -171,7 +176,7 @@ export function RecipeDetail() {
                   {r.ingredient.optional && <span className="muted">, optional</span>}
                 </div>
                 <div
-                  className={`small bold ${st.tone === 'ok' ? 'text-cobalt' : st.tone === 'bad' ? 'danger-text' : 'muted'}`}
+                  className={`small bold ${st.tone === 'ok' ? 'text-cobalt' : st.tone === 'warn' ? 'warn-text' : st.tone === 'bad' ? 'danger-text' : 'muted'}`}
                 >
                   {st.text}
                 </div>

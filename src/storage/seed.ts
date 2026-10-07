@@ -125,21 +125,59 @@ const ITEMS: ItemSeed[] = [
   ['vitamins', 'Vitamins', PC, 'Health', 'Bathroom', 1, 'pcs', 0, { showInStock: false }],
 ];
 
+/** Items used in the sample recipes track exact amounts; everything else is simple (Have / Low / Out). */
+const AMOUNT_ITEMS = new Set([
+  'milk',
+  'eggs',
+  'butter',
+  'telemea',
+  'sourcream',
+  'tomatoes',
+  'chicken',
+  'potatoes',
+  'onions',
+  'garlic',
+  'rice',
+  'pasta',
+  'flour',
+  'oil',
+]);
+/** A couple of simple items that are running low (and one that only goes on the list when out). */
+const LOW_SIMPLE = new Set(['toiletpaper', 'coffee', 'shampoo']);
+
 function buildItems(): Item[] {
-  return ITEMS.map(([id, name, category, subcategory, place, quantity, unit, low, extra]) => ({
-    id,
-    name,
-    category,
-    subcategory,
-    categorySource: 'manual',
-    place,
-    showInStock: true,
-    unit,
-    quantity,
-    ...(low > 0 ? { lowThreshold: low } : {}),
-    aliases: [],
-    ...extra,
-  }));
+  return ITEMS.map(([id, name, category, subcategory, place, quantity, unit, low, extra]): Item => {
+    const base = {
+      id,
+      name,
+      category,
+      subcategory,
+      categorySource: 'manual' as const,
+      place,
+      showInStock: true,
+      aliases: [] as string[],
+    };
+    if (AMOUNT_ITEMS.has(id))
+      return {
+        ...base,
+        tracking: 'amount',
+        status: quantity <= 0 ? 'out' : low && quantity < low ? 'low' : 'have',
+        addToListWhen: low > 0 ? 'low' : 'out',
+        unit,
+        quantity,
+        ...(low > 0 ? { lowThreshold: low } : {}),
+        ...extra,
+      };
+    return {
+      ...base,
+      tracking: 'simple',
+      status: quantity <= 0 ? 'out' : LOW_SIMPLE.has(id) ? 'low' : 'have',
+      addToListWhen: id === 'toiletpaper' ? 'low' : 'out',
+      unit,
+      quantity: 0,
+      ...extra,
+    };
+  });
 }
 
 // ---------- recipes ----------
@@ -717,6 +755,30 @@ export function buildSeed(today = todayISO()): Partial<Record<DataFile, unknown>
       k++;
     }
   }
+
+  // simple items that ran out (status events: no amount, no value)
+  const RAN_OUT: [id: string, name: string, cat: string, sub: string, mo: number, day: number][] = [
+    ['dishsoap', 'Dish soap', H, 'Cleaning', 0, 2],
+    ['dishsoap', 'Dish soap', H, 'Cleaning', -1, 8],
+    ['toothpaste', 'Toothpaste', PC, 'Hygiene', 0, 4],
+    ['coffee', 'Coffee beans', K, 'Coffee & tea', 0, 1],
+  ];
+  RAN_OUT.forEach(([itemId, name, category, subcategory, mo, day], i) => {
+    usage.push({
+      id: `uo${i}`,
+      date: dateFor(mo, day, today),
+      by: i % 2 ? ANA : MIHAI,
+      itemId,
+      name,
+      category,
+      subcategory,
+      quantity: 0,
+      unit: 'pcs',
+      value: 0,
+      reason: 'manual-decrease',
+      status: 'out',
+    });
+  });
 
   // cooked log
   const COOKED: [mo: number, recipe: string, by: 'A' | 'M', n: number][] = [

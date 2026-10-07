@@ -349,8 +349,22 @@ export function FinishCooking({
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     Object.fromEntries(deductionsFor(recipe, servings, items).map((d) => [d.itemId, num(d.amount, 3)])),
   );
+  // simple (have / low / out) ingredients: no amounts, but the cook can mark them Low or Out
+  const simpleItems = useMemo(() => {
+    const ids = new Set(
+      availability(recipe, servings, items)
+        .rows.filter((r) => r.simple && r.item && r.item.status !== 'out')
+        .map((r) => r.item!.id),
+    );
+    return items.filter((i) => ids.has(i.id));
+  }, [recipe, servings, items]);
+  const [marks, setMarks] = useState<Record<string, 'low' | 'out' | undefined>>({});
   const [busy, setBusy] = useState(false);
   const entries = Object.entries(amounts);
+  const statusChanges = Object.entries(marks).flatMap(([itemId, status]) =>
+    status ? [{ itemId, status }] : [],
+  );
+  const anyStock = entries.length > 0 || simpleItems.length > 0;
   const bad = entries.some(([, v]) => v.trim() !== '' && !(parseDecimal(v) >= 0));
 
   const apply = async (withStock: boolean) => {
@@ -362,7 +376,13 @@ export function FinishCooking({
       : [];
     const res = await run(
       'cookRecipe',
-      { recipeId: recipe.id, servings, deductions, planEntryId },
+      {
+        recipeId: recipe.id,
+        servings,
+        deductions,
+        statusChanges: withStock ? statusChanges : [],
+        planEntryId,
+      },
       {
         toast: (p) => {
           const added = p.ops.filter((o) => o.file === 'shopping' && o.t === 'upsert').length;
@@ -415,12 +435,52 @@ export function FinishCooking({
               );
             })}
           </div>
-        ) : (
+        ) : null}
+        {entries.length > 0 && (
+          <p className="small muted" style={{ margin: 0 }}>
+            Change an amount if you used more or less. Set it to 0 to leave that item alone.
+          </p>
+        )}
+        {simpleItems.length > 0 && (
+          <>
+            <h3 className="group-title" style={{ margin: '8px 0 0' }}>
+              Running low on anything?
+            </h3>
+            <div className="list" style={{ background: 'var(--surface-2)' }}>
+              {simpleItems.map((it) => {
+                const m = marks[it.id];
+                const toggle = (v: 'low' | 'out') =>
+                  setMarks((x) => ({ ...x, [it.id]: x[it.id] === v ? undefined : v }));
+                return (
+                  <div key={it.id} className="row" style={{ gap: 10, padding: '10px 12px 10px 16px' }}>
+                    <span className="grow bold">{it.name}</span>
+                    <div className="status-seg" role="group" aria-label={`Mark ${it.name}`}>
+                      <button
+                        type="button"
+                        data-s="low"
+                        aria-pressed={m === 'low'}
+                        onClick={() => toggle('low')}
+                      >
+                        Mark as Low
+                      </button>
+                      <button
+                        type="button"
+                        data-s="out"
+                        aria-pressed={m === 'out'}
+                        onClick={() => toggle('out')}
+                      >
+                        Mark as Out
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+        {!anyStock && (
           <p className="muted">None of the ingredients are tracked in stock, so nothing changes.</p>
         )}
-        <p className="small muted" style={{ margin: 0 }}>
-          Change an amount if you used more or less. Set it to 0 to leave that item alone.
-        </p>
       </div>
       <div
         className="stack"
@@ -433,9 +493,9 @@ export function FinishCooking({
           disabled={busy || bad}
           onClick={() => void apply(true)}
         >
-          {entries.length ? 'Update stock' : 'Mark as cooked'}
+          {entries.length || statusChanges.length ? 'Update stock' : 'Mark as cooked'}
         </button>
-        {entries.length > 0 && (
+        {anyStock && (
           <button
             type="button"
             className="btn btn-ghost btn-md"

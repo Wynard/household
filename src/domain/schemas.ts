@@ -62,19 +62,29 @@ export const itemSchema = z.object({
   id,
   name: z.string().min(1),
   category: z.string(),
-  subcategory: z.string(),
+  /** optional second level; '' = none (many imported categories have none) */
+  subcategory: z.string().default(''),
   categorySource: z.enum(['auto', 'manual']),
   place: z.string(),
   showInStock: z.boolean(),
-  unit: unitSchema,
-  quantity: qty,
+  /** 'simple' (the default) = only have / low / out; 'amount' = exact quantity */
+  tracking: z.enum(['simple', 'amount']).default('simple'),
+  /** the truth for simple items; for amount items it's derived from quantity vs threshold */
+  status: z.enum(['have', 'low', 'out']).default('have'),
+  /** amount items only (simple items keep the defaults, which are ignored) */
+  unit: unitSchema.default('pcs'),
+  quantity: qty.default(0),
+  /** amount items only: status becomes 'low' below this */
   lowThreshold: qty.optional(),
+  /** when the item goes on the shopping list automatically */
+  addToListWhen: z.enum(['low', 'out', 'never']).default('out'),
   gramsPerPiece: z.number().positive().optional(),
   aliases: z.array(z.string()),
   lastPrice: z.object({ amount: money, per: unitSchema, date: isoDate, store: z.string() }).optional(),
   archived: z.boolean().optional(),
 });
 export type Item = z.infer<typeof itemSchema>;
+export type ItemStatus = Item['status'];
 export const itemsPayload = z.object({ items: z.array(itemSchema) });
 
 // ---------- recipes.json ----------
@@ -231,11 +241,14 @@ export const usageEntrySchema = z.object({
   name: z.string(),
   category: z.string(),
   subcategory: z.string(),
+  /** 0 for status events of simple items */
   quantity: z.number().finite().min(0),
   unit: baseUnitSchema,
   value: money,
   reason: z.enum(['cooked', 'manual-decrease', 'expired', 'other']),
   recipeId: z.string().optional(),
+  /** a simple item went to Low or Out (no quantity or value) */
+  status: z.enum(['low', 'out']).optional(),
 });
 export type UsageEntry = z.infer<typeof usageEntrySchema>;
 
@@ -256,7 +269,7 @@ export const usagePayload = z.object({
 export type UsageYear = z.infer<typeof usagePayload>;
 
 // ---------- file envelope ----------
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 export const envelope = z.object({
   schemaVersion: z.number().int(),
   updatedAt: isoDateTime,

@@ -4,7 +4,7 @@ import { O, type Op } from '../ops';
 import { ingredientSchema, recipeSchema, stepSchema, type Recipe } from '../schemas';
 import { linkSteps, totalMinutes } from '../recipes';
 import { plural, qty as fmtQty, round3 } from '../format';
-import { stockDeltaOps, findItem } from './stock';
+import { stockChangeOps, findItem, type StockChange } from './stock';
 import { ensureYearOps } from '../budget';
 import { usageFileName } from '../files';
 import { yearOfDate } from '../dates';
@@ -134,15 +134,20 @@ export const cookRecipe = defineAction({
     recipeId: z.string(),
     servings: z.number().int().positive(),
     deductions: z.array(z.object({ itemId: z.string(), amount: z.number().min(0) })),
+    /** simple (have / low / out) ingredients the cook marked as running low or used up */
+    statusChanges: z.array(z.object({ itemId: z.string(), status: z.enum(['low', 'out']) })).default([]),
     planEntryId: z.string().optional(),
   }),
   plan(ctx, input) {
     const r = findRecipe(ctx, input.recipeId);
     if (!r) return missingRecipe;
-    const deltas = input.deductions
-      .filter((d) => d.amount > 0 && findItem(ctx, d.itemId))
-      .map((d) => ({ itemId: d.itemId, delta: -d.amount }));
-    const stock = stockDeltaOps(ctx, deltas, { reason: 'cooked', recipeId: r.id });
+    const changes: StockChange[] = [
+      ...input.deductions
+        .filter((d) => d.amount > 0 && findItem(ctx, d.itemId)?.tracking === 'amount')
+        .map((d) => ({ itemId: d.itemId, delta: -d.amount })),
+      ...input.statusChanges.filter((c) => findItem(ctx, c.itemId)?.tracking === 'simple'),
+    ];
+    const stock = stockChangeOps(ctx, changes, { reason: 'cooked', recipeId: r.id });
     const year = yearOfDate(ctx.today);
     // the cooked log needs this year's usage file even when nothing left stock
     const ops: Op[] = [...ensureYearOps(ctx, year), ...stock.ops];

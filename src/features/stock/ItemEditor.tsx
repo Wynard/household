@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
-import { DecimalInput, DeleteButton, Field, Switch } from '../../ui/controls';
+import { DecimalInput, DeleteButton, Field, Seg, Switch } from '../../ui/controls';
 import { useRun, useSnapshot } from '../../app/data';
 import { useToast } from '../../ui/Toast';
 import { categorise, normalise } from '../../domain/categorise';
-import { num, parseDecimal } from '../../domain/format';
-import { UNITS, type Item, type Unit } from '../../domain/schemas';
+import { catLabel, num, parseDecimal } from '../../domain/format';
+import { UNITS, type Item, type ItemStatus, type Unit } from '../../domain/schemas';
 import { CategoryPicker } from './CategoryPicker';
 
 type Draft = {
@@ -15,6 +15,9 @@ type Draft = {
   /** true once a person picked or changed the category */
   manual: boolean;
   place: string;
+  tracking: Item['tracking'];
+  status: ItemStatus;
+  addToListWhen: Item['addToListWhen'];
   unit: Unit;
   quantity: string;
   low: string;
@@ -30,8 +33,11 @@ function toDraft(it: Item | undefined, place: string, preset?: Partial<Draft>): 
       subcategory: null,
       manual: false,
       place,
+      tracking: 'simple',
+      status: 'have',
+      addToListWhen: 'out',
       unit: 'pcs',
-      quantity: '1',
+      quantity: '',
       low: '',
       gramsPerPiece: '',
       showInStock: true,
@@ -43,8 +49,11 @@ function toDraft(it: Item | undefined, place: string, preset?: Partial<Draft>): 
     subcategory: it.subcategory,
     manual: true,
     place: it.place,
+    tracking: it.tracking,
+    status: it.status,
+    addToListWhen: it.addToListWhen,
     unit: it.unit,
-    quantity: num(it.quantity, 3),
+    quantity: it.tracking === 'amount' ? num(it.quantity, 3) : '',
     low: it.lowThreshold ? num(it.lowThreshold, 3) : '',
     gramsPerPiece: it.gramsPerPiece ? num(it.gramsPerPiece) : '',
     showInStock: it.showInStock,
@@ -93,14 +102,15 @@ export function ItemEditor({
     return others.filter((i) => normalise(i.name).includes(n) || n.includes(normalise(i.name))).slice(0, 3);
   }, [d.name, others]);
 
-  const qty = parseDecimal(d.quantity);
-  const low = d.low.trim() ? parseDecimal(d.low) : 0;
+  const amount = d.tracking === 'amount';
+  const qty = amount ? parseDecimal(d.quantity) : 0;
+  const low = amount && d.low.trim() ? parseDecimal(d.low) : 0;
   const gpp = d.gramsPerPiece.trim() ? parseDecimal(d.gramsPerPiece) : 0;
   const problem = !d.name.trim()
     ? 'Add a name'
-    : !category || !subcategory
+    : !category
       ? 'Pick a category'
-      : Number.isNaN(qty) || qty < 0
+      : Number.isNaN(qty) || qty < 0 || (amount && !d.quantity.trim())
         ? 'Enter how much is in the house'
         : Number.isNaN(low) || low < 0
           ? 'Enter a number for the warning'
@@ -113,14 +123,14 @@ export function ItemEditor({
     : [];
 
   const save = async () => {
-    if (problem || !category || !subcategory) return;
+    if (problem || !category) return;
     const res = await run(
       'upsertItem',
       {
         id: existing?.id,
         name: d.name.trim(),
         category,
-        subcategory,
+        subcategory: subcategory ?? '',
         categorySource: d.manual
           ? existing && existing.category === category && existing.subcategory === subcategory
             ? existing.categorySource
@@ -128,6 +138,9 @@ export function ItemEditor({
           : 'auto',
         place: d.place,
         showInStock: d.showInStock,
+        tracking: d.tracking,
+        status: d.status,
+        addToListWhen: d.addToListWhen,
         unit: d.unit,
         quantity: qty,
         lowThreshold: low > 0 ? low : undefined,
@@ -190,7 +203,7 @@ export function ItemEditor({
             </span>
             <span className="bold" style={{ color: category ? 'var(--cobalt-ink)' : 'var(--ink)' }}>
               {category
-                ? `${category} › ${subcategory}`
+                ? catLabel(category, subcategory ?? undefined)
                 : d.name.trim()
                   ? 'Needs a category. No match found, pick one.'
                   : 'Type a name to get a suggestion'}
@@ -222,40 +235,85 @@ export function ItemEditor({
 
         <div className="stack-sm">
           <span className="bold" style={{ fontSize: 15 }}>
-            Unit
+            Tracking
           </span>
-          <div className="unit-grid" role="group" aria-label="Unit">
-            {UNITS.map((u) => (
-              <button key={u} type="button" aria-pressed={d.unit === u} onClick={() => upd({ unit: u })}>
-                {u}
-              </button>
-            ))}
-          </div>
+          <Seg
+            label="Tracking"
+            value={d.tracking}
+            onChange={(t) =>
+              // switching to amounts asks for the current quantity (the field starts empty)
+              upd(t === 'amount' ? { tracking: t, quantity: '' } : { tracking: t })
+            }
+            options={[
+              ['simple', 'Have / low / out'],
+              ['amount', 'Exact amount'],
+            ]}
+          />
         </div>
 
-        <div className="grid-2" style={{ gap: 10 }}>
-          <Field label="In the house now">
-            <DecimalInput value={d.quantity} onChange={(e) => upd({ quantity: e.target.value })} />
-          </Field>
-          <Field label="Warn me below">
-            <DecimalInput
-              value={d.low}
-              placeholder="No warning"
-              onChange={(e) => upd({ low: e.target.value })}
+        {!amount && (
+          <div className="stack-sm">
+            <span className="bold" style={{ fontSize: 15 }}>
+              In the house now
+            </span>
+            <Seg
+              label="In the house now"
+              value={d.status}
+              onChange={(st) => upd({ status: st })}
+              options={[
+                ['have', 'Have'],
+                ['low', 'Low'],
+                ['out', 'Out'],
+              ]}
             />
-          </Field>
-        </div>
-        {d.unit === 'pcs' && (
-          <Field
-            label="Weight per piece, in grams (optional)"
-            hint="Lets recipes in grams use pieces, e.g. one egg is about 60 g."
-          >
-            <DecimalInput
-              value={d.gramsPerPiece}
-              placeholder="e.g. 60"
-              onChange={(e) => upd({ gramsPerPiece: e.target.value })}
-            />
-          </Field>
+          </div>
+        )}
+
+        {amount && (
+          <>
+            <div className="stack-sm">
+              <span className="bold" style={{ fontSize: 15 }}>
+                Unit
+              </span>
+              <div className="unit-grid" role="group" aria-label="Unit">
+                {UNITS.map((u) => (
+                  <button key={u} type="button" aria-pressed={d.unit === u} onClick={() => upd({ unit: u })}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid-2" style={{ gap: 10 }}>
+              <Field label="In the house now">
+                <DecimalInput
+                  value={d.quantity}
+                  placeholder={`How much, in ${d.unit}`}
+                  autoFocus={!!existing && existing.tracking === 'simple'}
+                  onChange={(e) => upd({ quantity: e.target.value })}
+                />
+              </Field>
+              <Field label="Warn me below">
+                <DecimalInput
+                  value={d.low}
+                  placeholder="No warning"
+                  onChange={(e) => upd({ low: e.target.value })}
+                />
+              </Field>
+            </div>
+            {d.unit === 'pcs' && (
+              <Field
+                label="Weight per piece, in grams (optional)"
+                hint="Lets recipes in grams use pieces, e.g. one egg is about 60 g."
+              >
+                <DecimalInput
+                  value={d.gramsPerPiece}
+                  placeholder="e.g. 60"
+                  onChange={(e) => upd({ gramsPerPiece: e.target.value })}
+                />
+              </Field>
+            )}
+          </>
         )}
 
         <Switch
@@ -268,6 +326,24 @@ export function ItemEditor({
               : 'Hidden from Stock. Still used for budget categories, recipes and receipts.'
           }
         />
+        {d.showInStock && (
+          <div className="stack-sm">
+            <span className="bold" style={{ fontSize: 15 }}>
+              Add to the shopping list when
+            </span>
+            <Seg
+              small
+              label="Add to the shopping list when"
+              value={d.addToListWhen}
+              onChange={(w) => upd({ addToListWhen: w })}
+              options={[
+                ['low', amount ? 'Below warning' : 'Low'],
+                ['out', 'Out'],
+                ['never', 'Never'],
+              ]}
+            />
+          </div>
+        )}
 
         {problem && d.name.trim() && <span className="problem">{problem}</span>}
         <button
@@ -364,7 +440,7 @@ function MergeSheet({
               <span className="grow stack" style={{ gap: 0 }}>
                 <span className="title">{i.name}</span>
                 <span className="sub">
-                  {i.category} › {i.subcategory}, {i.place}
+                  {catLabel(i.category, i.subcategory)}, {i.place}
                 </span>
               </span>
             </button>

@@ -19,6 +19,7 @@ import { useToast } from '../../ui/Toast';
 import { balanceBefore, ledger, monthSummary, potBalance, type LedgerEntry } from '../../domain/budget';
 import {
   dayLabel,
+  catLabel,
   money,
   monthLabel,
   monthName,
@@ -415,7 +416,7 @@ function LedgerRow({
                 <span className="stack" style={{ gap: 0 }}>
                   <span>{l.name}</span>
                   <span className="tiny muted">
-                    {l.category} › {l.subcategory}
+                    {catLabel(l.category, l.subcategory)}
                     {l.quantity !== 1 || l.unit !== 'pcs'
                       ? `, ${unitPriceLabel(l.price, l.quantity, l.unit)}`
                       : ''}

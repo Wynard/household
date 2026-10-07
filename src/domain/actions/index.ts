@@ -1,7 +1,7 @@
 // The actions layer (4.6). Every change to data — from a button or from the
 // Assistant — goes through one of these. Add new actions to ACTIONS.
 import type { ActionDef } from './types';
-import { adjustStock } from './stock';
+import { adjustStock, setItemStatus } from './stock';
 import { addCategory, addSubcategory, deleteItem, mergeItems, moveItems, upsertItem } from './items';
 import {
   addRecipeCategory,
@@ -51,6 +51,7 @@ import {
 } from './settings';
 
 export const ACTIONS = {
+  setItemStatus,
   addPurchase,
   updatePurchase,
   deletePurchase,

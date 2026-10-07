@@ -16,7 +16,8 @@ import {
   type ShoppingFile,
   type UsageFile,
 } from './schemas';
-import { DEFAULT_CATEGORIES, DEFAULT_PLACES, DEFAULT_RECIPE_CATEGORIES } from './defaults';
+import { DEFAULT_PLACES, DEFAULT_RECIPE_CATEGORIES } from './defaults';
+import { migrateV1toV2 } from '../storage/migrations';
 
 export type StaticFile = 'household' | 'items' | 'recipes' | 'plan' | 'shopping';
 export type BudgetFileName = `budget-${number}`;
@@ -88,7 +89,8 @@ export function emptyFile(f: DataFile, by: string, opts: { openingBalance?: numb
         ...stamp(by),
         members: [],
         monthlyTarget: 0,
-        categories: DEFAULT_CATEGORIES,
+        // a real household starts empty and offers "Import your list" (5.2)
+        categories: [],
         places: DEFAULT_PLACES,
         stores: [],
         recipeCategories: DEFAULT_RECIPE_CATEGORIES,
@@ -107,11 +109,11 @@ export function emptyFile(f: DataFile, by: string, opts: { openingBalance?: numb
 }
 
 /**
- * Migration hook keyed on schemaVersion. Each entry upgrades from version N to N+1.
- * There is only version 1 so far; add steps here when the shape changes.
+ * Migrations keyed on schemaVersion: each upgrades a file from version N to N+1.
+ * They are pure and idempotent; see storage/migrations.ts.
  */
 const MIGRATIONS: Record<number, (raw: Record<string, unknown>, f: DataFile) => Record<string, unknown>> = {
-  // 1: (raw) => ({ ...raw, schemaVersion: 2, newField: [] }),
+  1: migrateV1toV2,
 };
 
 export class DataValidationError extends Error {

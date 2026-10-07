@@ -62,7 +62,14 @@ export function InsightsScreen() {
     () => spendingInsights(budgets, ym, f, inProgress ? { upToDay: new Date().getDate() } : {}),
     [budgets, ym, f, inProgress],
   );
-  const us = useMemo(() => usageInsights(usage, budgets, ym, f), [usage, budgets, ym, f]);
+  const simpleIds = useMemo(
+    () => new Set((snap?.items.items ?? []).filter((i) => i.tracking === 'simple').map((i) => i.id)),
+    [snap],
+  );
+  const us = useMemo(
+    () => usageInsights(usage, budgets, ym, f, simpleIds),
+    [usage, budgets, ym, f, simpleIds],
+  );
   if (!snap) return <Loading text="Adding things up…" />;
 
   const members = snap.household.members;
@@ -335,6 +342,27 @@ function UsageView({
           </p>
         )}
       </div>
+      {us.ranOutOf.length > 0 && (
+        <>
+          <h2 className="h2" style={{ marginBottom: 4 }}>
+            Ran out of
+          </h2>
+          <p className="small muted" style={{ margin: '0 0 10px' }}>
+            Things marked Out this month. Ones that run out often are worth buying more of.
+          </p>
+          <div className="list">
+            {us.ranOutOf.slice(0, 10).map((x) => (
+              <div key={x.itemId} className="row-between" style={{ padding: '12px 16px' }}>
+                <span className="stack" style={{ gap: 0 }}>
+                  <span className="bold">{x.name}</span>
+                  <span className="small muted">Last on {format(parseISO(x.last), 'd MMM')}</span>
+                </span>
+                <span className="muted">{plural(x.times, 'time')}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       {us.boughtVsUsed.length > 0 && (
         <>
           <h2 className="h2" style={{ marginBottom: 4 }}>

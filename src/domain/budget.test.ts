@@ -146,10 +146,11 @@ describe('budget actions', () => {
     });
     const { snap } = applyToSnapshot(ctx.snap, plan.ops);
     const hummus = snap.items.items.find((i) => i.name === 'Hummus')!;
+    // new items start simple: bought means "Have"
     expect(hummus).toMatchObject({
       place: 'Fridge',
-      quantity: 200,
-      unit: 'g',
+      tracking: 'simple',
+      status: 'have',
       aliases: ['HUMUS CLASIC 200G'],
     });
     expect(snap.items.items.find((i) => i.id === 'eggs')!.aliases).toContain('OUA L 10 BUC');

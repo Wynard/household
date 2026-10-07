@@ -3,7 +3,10 @@ import { Sheet } from '../../ui/Sheet';
 import { BackButton } from '../../ui/controls';
 import { useRun, useSnapshot } from '../../app/data';
 
-/** Two steps: category, then subcategory. Each step can create a new one on the spot. */
+/**
+ * Two steps: category, then subcategory (optional: "No subcategory" keeps just
+ * the category). Each step can create a new one on the spot.
+ */
 export function CategoryPicker({
   onPick,
   onClose,
@@ -40,11 +43,7 @@ export function CategoryPicker({
       const existing = tree.find((c) => c.name.toLowerCase() === n.toLowerCase());
       if (existing) setCat(existing.name);
       else if (
-        await run(
-          'addCategory',
-          { name: n, subcategories: ['General'] },
-          { toast: `Created ${n}`, undo: false },
-        )
+        await run('addCategory', { name: n, subcategories: [] }, { toast: `Created ${n}`, undo: false })
       )
         setCat(n);
     }
@@ -60,16 +59,23 @@ export function CategoryPicker({
           {node ? node.name : 'Pick a category'}
         </h2>
         <p className="muted" style={{ margin: 0, fontSize: 15 }}>
-          {node ? 'Now pick the subcategory.' : 'The app remembers this for next time.'}
+          {node
+            ? 'Now pick a subcategory, or keep just the category.'
+            : 'The app remembers this for next time.'}
         </p>
       </div>
       <div className="grid-2">
         {node
-          ? node.subcategories.map((s) => (
-              <button key={s} type="button" className="cat-opt" onClick={() => onPick(node.name, s)}>
-                {s}
-              </button>
-            ))
+          ? [
+              <button key="" type="button" className="cat-opt" onClick={() => onPick(node.name, '')}>
+                No subcategory
+              </button>,
+              ...node.subcategories.map((s) => (
+                <button key={s} type="button" className="cat-opt" onClick={() => onPick(node.name, s)}>
+                  {s}
+                </button>
+              )),
+            ]
           : tree.map((c) => (
               <button key={c.name} type="button" className="cat-opt" onClick={() => setCat(c.name)}>
                 {c.name}

@@ -213,6 +213,8 @@ export interface UsageInsights {
   mostCooked: { recipeId: string; times: number }[];
   /** per item: bought vs used this month, in base units */
   boughtVsUsed: { name: string; itemId: string; unit: 'g' | 'ml' | 'pcs'; bought: number; used: number }[];
+  /** simple items that were marked Out this month, most often first */
+  ranOutOf: { itemId: string; name: string; times: number; last: string }[];
 }
 
 export function usageInsights(
@@ -220,8 +222,10 @@ export function usageInsights(
   budgets: BudgetFile[],
   ym: string,
   f: Filters,
+  /** items tracked as have / low / out: no amounts, so left out of "bought vs used" */
+  simpleIds: ReadonlySet<string> = new Set(),
 ): UsageInsights {
-  const entries = usage
+  const all = usage
     .flatMap((u) => u.usage)
     .filter(
       (e) =>
@@ -230,6 +234,16 @@ export function usageInsights(
         (!f.category || e.category === f.category) &&
         (!f.subcategory || e.subcategory === f.subcategory),
     );
+  // status events (a simple item went Low / Out) carry no amount or value
+  const entries = all.filter((e) => !e.status);
+  const outEvents = new Map<string, { itemId: string; name: string; times: number; last: string }>();
+  for (const e of all) {
+    if (e.status !== 'out') continue;
+    const x = outEvents.get(e.itemId) ?? { itemId: e.itemId, name: e.name, times: 0, last: e.date };
+    x.times++;
+    if (e.date > x.last) x.last = e.date;
+    outEvents.set(e.itemId, x);
+  }
   const cooked: CookedEntry[] = usage
     .flatMap((u) => u.cooked)
     .filter((c) => c.date.startsWith(ym) && (!f.person || c.by === f.person));
@@ -270,13 +284,13 @@ export function usageInsights(
         used: round3(u && u.unit === unit ? u.quantity : 0),
       };
     })
-    .filter((x) => x.bought > 0)
+    .filter((x) => x.bought > 0 && !simpleIds.has(x.itemId))
     // possible waste first: the biggest share of what was bought that wasn't used
     .sort((a, b) => unusedShare(b) - unusedShare(a) || b.bought - a.bought);
 
   return {
     totalValue: round2(entries.reduce((t, e) => t + e.value, 0)),
-    distinctItems: byItem.size,
+    distinctItems: new Set(all.map((e) => e.itemId)).size,
     meals: cooked.length,
     mostUsed: [...byItem.values()]
       .map((x) => ({ ...x, value: round2(x.value), quantity: round3(x.quantity) }))
@@ -288,5 +302,8 @@ export function usageInsights(
       .map(([recipeId, times]) => ({ recipeId, times }))
       .sort((a, b) => b.times - a.times),
     boughtVsUsed,
+    ranOutOf: [...outEvents.values()].sort(
+      (a, b) => b.times - a.times || b.last.localeCompare(a.last) || a.name.localeCompare(b.name),
+    ),
   };
 }

@@ -94,3 +94,7 @@ export function unitPriceLabel(price: number, quantity: number, unit: Unit): str
   const perBase = unit === 'g' || unit === 'ml' ? price / quantity : price / (quantity * 1000);
   return `${money(perBase * 1000)}/${unit === 'g' || unit === 'kg' ? 'kg' : 'l'}`;
 }
+
+/** "Dairy & eggs › Milk", or just "Lactate & oua" when there's no subcategory. */
+export const catLabel = (category: string, subcategory?: string) =>
+  subcategory ? `${category} › ${subcategory}` : category || 'No category';

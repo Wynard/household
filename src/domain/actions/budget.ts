@@ -6,7 +6,7 @@ import { O, type Op } from '../ops';
 import { ensureYearOps } from '../budget';
 import { budgetFileName } from '../files';
 import { yearOfDate } from '../dates';
-import { dayLabel, money, plural, qty as fmtQty, round2, round3 } from '../format';
+import { catLabel, dayLabel, money, plural, qty as fmtQty, round2, round3 } from '../format';
 import { convert } from '../units';
 import { lowStockSync } from '../stock';
 import { normalise } from '../categorise';
@@ -137,7 +137,7 @@ export const addPurchase = defineAction({
       let itemId = l.itemId && ctx.snap.items.items.some((i) => i.id === l.itemId) ? l.itemId : undefined;
       const line = toLine(l, lineId, itemId);
       preview.push(
-        `${line.name}, ${fmtQty(line.quantity, line.unit)}, ${money(line.price)}, ${line.category} › ${line.subcategory}`,
+        `${line.name}, ${fmtQty(line.quantity, line.unit)}, ${money(line.price)}, ${catLabel(line.category, line.subcategory)}`,
       );
 
       if (l.toStock && !itemId) {
@@ -151,6 +151,10 @@ export const addPurchase = defineAction({
           place:
             l.place && places.includes(l.place) ? l.place : places.includes('Pantry') ? 'Pantry' : places[0],
           showInStock: true,
+          // new items start simple (Have / Low / Out); switch to amounts in the editor if needed
+          tracking: 'simple',
+          status: 'out',
+          addToListWhen: 'out',
           unit: line.unit,
           quantity: 0,
           aliases: l.rawText && normalise(l.rawText) !== normalise(line.name) ? [l.rawText] : [],
@@ -163,7 +167,13 @@ export const addPurchase = defineAction({
       if (itemId) {
         const it = after.get(itemId) ?? ctx.snap.items.items.find((i) => i.id === itemId)!;
         let next = it;
-        if (l.toStock) {
+        if (l.toStock && it.tracking === 'simple') {
+          if (it.status !== 'have') {
+            ops.push(O.item.patch(it.id, { status: 'have' }));
+            stockLines.push(`Stock: ${it.name} → Have, ${it.place}`);
+          }
+          next = { ...it, status: 'have' };
+        } else if (l.toStock) {
           const add = convert(line.quantity, line.unit, it.unit, it.gramsPerPiece);
           if (add === null)
             return {

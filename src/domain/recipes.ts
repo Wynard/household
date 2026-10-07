@@ -27,6 +27,10 @@ export interface IngredientRow {
   have?: number;
   /** missing amount in the item's unit */
   short?: number;
+  /** linked to a simple (have / low / out) item: amounts aren't compared */
+  simple?: boolean;
+  /** a simple item marked Low: available, with a warning */
+  low?: boolean;
 }
 
 export type StockMap = Map<string, number>;
@@ -48,6 +52,11 @@ export function checkIngredient(
   if (g.pantryStaple) return { ingredient: g, status: 'staple', need, unit: g.unit };
   const item = g.itemId ? items.get(g.itemId) : undefined;
   if (!item) return { ingredient: g, status: 'untracked', need, unit: g.unit };
+  if (item.tracking === 'simple') {
+    // Have or Low counts as available (Low warns); Out is missing
+    const status: IngredientStatus = item.status === 'out' ? 'missing' : 'have';
+    return { ingredient: g, item, status, need, unit: g.unit, simple: true, low: item.status === 'low' };
+  }
   const unit = g.unit ?? item.unit;
   const have = stock.get(item.id) ?? 0;
   if (need === undefined) {
@@ -102,8 +111,9 @@ export const badgeLabel = (a: Availability) =>
   a.badge === 'ready' ? 'Ready to cook' : a.badge === 'untracked' ? 'Not tracked' : `Missing ${a.missing}`;
 
 /**
- * What cooking takes out of stock: tracked, comparable ingredients in the
- * item's unit, capped at what's in the house.
+ * What cooking takes out of stock: tracked, comparable ingredients of amount
+ * items, in the item's unit. Simple items are never deducted (cooking offers
+ * "Mark as Low / Out" for them instead).
  */
 export function deductionsFor(
   recipe: Recipe,
@@ -113,7 +123,7 @@ export function deductionsFor(
   const a = availability(recipe, servings, items);
   const byItem = new Map<string, number>();
   for (const r of a.rows) {
-    if (!r.item || r.needInItemUnit === undefined) continue;
+    if (!r.item || r.simple || r.needInItemUnit === undefined) continue;
     byItem.set(r.item.id, round3((byItem.get(r.item.id) ?? 0) + r.needInItemUnit));
   }
   return [...byItem].map(([itemId, amount]) => ({ itemId, amount }));

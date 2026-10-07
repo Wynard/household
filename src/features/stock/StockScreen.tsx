@@ -3,9 +3,9 @@ import { useRun, useSnapshot } from '../../app/data';
 import { useScreenContext } from '../../app/assistantUi';
 import { prefs } from '../../app/prefs';
 import { Chip, EmptyState, Loading, PageHeader, Seg, Stepper } from '../../ui/controls';
-import { stepFor, stockStatus, type StockStatus } from '../../domain/stock';
+import { isSimple, stepFor, stockStatus, type StockStatus } from '../../domain/stock';
 import { normalise } from '../../domain/categorise';
-import { qty } from '../../domain/format';
+import { catLabel, qty } from '../../domain/format';
 import type { Item } from '../../domain/schemas';
 import { ItemEditor } from './ItemEditor';
 import type { ActionPlan } from '../../domain/actions';
@@ -13,17 +13,23 @@ import type { ActionPlan } from '../../domain/actions';
 type Filter = 'all' | 'low' | 'out';
 type Group = 'place' | 'category';
 
-const BADGE: Record<Exclude<StockStatus, 'ok'>, { label: string; cls: string }> = {
+const BADGE: Record<Exclude<StockStatus, 'have'>, { label: string; cls: string }> = {
   out: { label: 'Out', cls: 'tag tag-red' },
   low: { label: 'Running low', cls: 'tag tag-saffron' },
 };
 
-/** Toast text after a stepper change: only speak up when the shopping list changed. */
-function stepToast(plan: ActionPlan): string {
+const STATUS_OPTIONS: [StockStatus, string][] = [
+  ['have', 'Have'],
+  ['low', 'Low'],
+  ['out', 'Out'],
+];
+
+/** Toast text after a stock change: only speak up when the shopping list changed. */
+function stockToast(plan: ActionPlan): string {
   const added = plan.ops.filter((o) => o.file === 'shopping' && o.t === 'upsert').length;
   const removed = plan.ops.filter((o) => o.file === 'shopping' && o.t === 'remove').length;
   const name = plan.title.split(':')[0];
-  if (added) return `${name} is running low, so it's on the shopping list`;
+  if (added) return `${name} is on the shopping list`;
   if (removed) return `${name} is back in stock and off the shopping list`;
   return 'Saved';
 }
@@ -35,11 +41,17 @@ export function StockScreen() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [group, setGroupState] = useState<Group>(() => prefs.ui().stockGroup);
+  const [collapsed, setCollapsedState] = useState<string[]>(() => prefs.ui().stockCollapsed);
   const [editing, setEditing] = useState<string | null | undefined>(undefined); // undefined = closed, null = new
 
   const setGroup = (g: Group) => {
     prefs.setUi({ stockGroup: g });
     setGroupState(g);
+  };
+  const toggleSection = (key: string) => {
+    const next = collapsed.includes(key) ? collapsed.filter((k) => k !== key) : [...collapsed, key];
+    prefs.setUi({ stockCollapsed: next });
+    setCollapsedState(next);
   };
 
   const shown = useMemo(
@@ -70,7 +82,7 @@ export function StockScreen() {
     const out = keys.map((k) => ({ name: k, items: visible.filter((i) => keyOf(i) === k) }));
     // items whose place/category isn't in the list any more still show up
     const orphans = visible.filter((i) => !keys.includes(keyOf(i)));
-    if (orphans.length) out.push({ name: 'Other', items: orphans });
+    if (orphans.length) out.push({ name: group === 'place' ? 'Other' : 'No category', items: orphans });
     return out.filter((g) => g.items.length);
   }, [snap, shown, query, filter, group]);
 
@@ -86,7 +98,13 @@ export function StockScreen() {
   if (!snap) return <Loading text="Loading your stock…" />;
 
   const step = (it: Item, dir: 1 | -1) =>
-    void run('adjustStock', { itemId: it.id, delta: dir * stepFor(it) }, { toast: stepToast });
+    void run('adjustStock', { itemId: it.id, delta: dir * stepFor(it) }, { toast: stockToast });
+  const setStatus = (it: Item, status: StockStatus) => {
+    if (stockStatus(it) === status) return;
+    void run('setItemStatus', { itemId: it.id, status }, { toast: stockToast });
+  };
+  // searching or filtering opens every section, so a match is never hidden
+  const narrowed = query.trim() !== '' || filter !== 'all';
 
   return (
     <>
@@ -116,7 +134,7 @@ export function StockScreen() {
           All
         </Chip>
         <Chip pressed={filter === 'low'} onClick={() => setFilter('low')}>
-          Running low {counts.low}
+          Low {counts.low}
         </Chip>
         <Chip pressed={filter === 'out'} onClick={() => setFilter('out')}>
           Out {counts.out}
@@ -137,27 +155,51 @@ export function StockScreen() {
         </div>
       </div>
 
-      {groups.map((g) => (
-        <section key={g.name} aria-label={g.name}>
-          <h2 className="group-title">{g.name}</h2>
-          <div className="list">
-            {g.items.map((it) => (
-              <StockRow
-                key={it.id}
-                item={it}
-                sub={
-                  group === 'place'
-                    ? `${it.category} › ${it.subcategory}`
-                    : `${it.subcategory}, ${it.place.toLowerCase()}`
-                }
-                onEdit={() => setEditing(it.id)}
-                onDec={() => step(it, -1)}
-                onInc={() => step(it, 1)}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      {groups.map((g) => {
+        const key = `${group}:${g.name}`;
+        const open = narrowed || !collapsed.includes(key);
+        const flagged = g.items.filter((i) => stockStatus(i) !== 'have').length;
+        return (
+          <section key={key} aria-label={g.name}>
+            <h2 className="stock-section">
+              <button
+                type="button"
+                aria-expanded={open}
+                disabled={narrowed}
+                onClick={() => toggleSection(key)}
+              >
+                <span className="chev" aria-hidden="true">
+                  {open ? '▾' : '▸'}
+                </span>
+                <span className="grow">{g.name}</span>
+                <span className="small muted">
+                  {g.items.length}
+                  {flagged ? `, ${flagged} low or out` : ''}
+                </span>
+              </button>
+            </h2>
+            {open && (
+              <div className="list">
+                {g.items.map((it) => (
+                  <StockRow
+                    key={it.id}
+                    item={it}
+                    sub={
+                      group === 'place'
+                        ? catLabel(it.category, it.subcategory)
+                        : [it.subcategory, it.place.toLowerCase()].filter(Boolean).join(', ')
+                    }
+                    onEdit={() => setEditing(it.id)}
+                    onDec={() => step(it, -1)}
+                    onInc={() => step(it, 1)}
+                    onStatus={(s) => setStatus(it, s)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
       {groups.length === 0 &&
         (shown.length === 0 ? (
           <EmptyState>Nothing in stock yet. Tap Add item, or scan a receipt with the Assistant.</EmptyState>
@@ -176,20 +218,22 @@ function StockRow({
   onEdit,
   onDec,
   onInc,
+  onStatus,
 }: {
   item: Item;
   sub: string;
   onEdit: () => void;
   onDec: () => void;
   onInc: () => void;
+  onStatus: (s: StockStatus) => void;
 }) {
   const st = stockStatus(item);
-  const s = stepFor(item);
+  const simple = isSimple(item);
   const press = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // long-press anywhere on the row opens the editor too
   const longPress = {
     onPointerDown: (e: React.PointerEvent) => {
-      if ((e.target as HTMLElement).closest('.stepper')) return;
+      if ((e.target as HTMLElement).closest('.stepper, .status-seg')) return;
       press.current = setTimeout(onEdit, 550);
     },
     onPointerUp: () => clearTimeout(press.current),
@@ -197,24 +241,41 @@ function StockRow({
     onPointerCancel: () => clearTimeout(press.current),
   };
   return (
-    <div className="stock-row" {...longPress}>
+    <div className={`stock-row${st === 'have' ? '' : ` is-${st}`}`} {...longPress}>
       <div className="grow">
         <button type="button" className="stock-name" aria-label={`Edit ${item.name}`} onClick={onEdit}>
           {item.name}
         </button>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-          {st !== 'ok' && <span className={BADGE[st].cls}>{BADGE[st].label}</span>}
-          <span className="small muted">{sub}</span>
+          {st !== 'have' && <span className={BADGE[st].cls}>{BADGE[st].label}</span>}
+          {sub && <span className="small muted">{sub}</span>}
         </div>
       </div>
-      <Stepper
-        value={qty(item.quantity, item.unit)}
-        decLabel={`Remove ${qty(s, item.unit)} of ${item.name}`}
-        incLabel={`Add ${qty(s, item.unit)} of ${item.name}`}
-        decDisabled={item.quantity <= 0}
-        onDec={onDec}
-        onInc={onInc}
-      />
+      {simple ? (
+        <div className="status-seg" role="group" aria-label={`${item.name}: have, low or out`}>
+          {STATUS_OPTIONS.map(([v, l]) => (
+            <button
+              type="button"
+              key={v}
+              data-s={v}
+              aria-pressed={st === v}
+              aria-label={`${item.name}: ${l}`}
+              onClick={() => onStatus(v)}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <Stepper
+          value={qty(item.quantity, item.unit)}
+          decLabel={`Remove ${qty(stepFor(item), item.unit)} of ${item.name}`}
+          incLabel={`Add ${qty(stepFor(item), item.unit)} of ${item.name}`}
+          decDisabled={item.quantity <= 0}
+          onDec={onDec}
+          onInc={onInc}
+        />
+      )}
     </div>
   );
 }

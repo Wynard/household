@@ -51,7 +51,8 @@ const PERSON = str('"Person A" or "Person B"');
 export const READ_TOOLS: FunctionDeclaration[] = [
   {
     name: 'getStock',
-    description: 'Items at home with quantity, place, category and status (ok, low, out).',
+    description:
+      'Items at home with place, category and status (have, low, out). Simple items only have a status; amount items also have quantity and unit.',
     parameters: S({
       filter: { type: 'string', enum: ['all', 'low', 'out'] },
       place: str(),
@@ -150,10 +151,24 @@ export const PROPOSAL_TOOLS: FunctionDeclaration[] = [
   },
   {
     name: 'proposeStockChange',
-    description: 'Prepare stock changes: set a quantity or add/remove an amount (in the item unit).',
-    parameters: S({ changes: arr(S({ itemId: str(), set: numb(), delta: numb() }, ['itemId'])) }, [
-      'changes',
-    ]),
+    description:
+      'Prepare stock changes. Simple items (tracking "simple"): give status have, low or out. Amount items: set a quantity or add/remove an amount (in the item unit), or status out to empty it.',
+    parameters: S(
+      {
+        changes: arr(
+          S(
+            {
+              itemId: str(),
+              status: { type: 'string', enum: ['have', 'low', 'out'] },
+              set: numb(),
+              delta: numb(),
+            },
+            ['itemId'],
+          ),
+        ),
+      },
+      ['changes'],
+    ),
   },
   {
     name: 'proposeShoppingAdd',
@@ -292,8 +307,8 @@ function itemRow(i: Item) {
   return {
     id: i.id,
     name: i.name,
-    quantity: i.quantity,
-    unit: i.unit,
+    tracking: i.tracking,
+    ...(i.tracking === 'amount' ? { quantity: i.quantity, unit: i.unit } : {}),
     place: i.place,
     category: i.category,
     subcategory: i.subcategory,
@@ -458,11 +473,17 @@ export function runTool(name: string, args: Record<string, unknown>, env: ToolEn
     }
     case 'getUsage': {
       const ym = s(args.month) ?? currentMonth();
-      const u = usageInsights(Object.values(snap.usage), budgets, ym, {
-        person: person(args.person),
-        category: s(args.category),
-        subcategory: s(args.subcategory),
-      });
+      const u = usageInsights(
+        Object.values(snap.usage),
+        budgets,
+        ym,
+        {
+          person: person(args.person),
+          category: s(args.category),
+          subcategory: s(args.subcategory),
+        },
+        new Set(snap.items.items.filter((i) => i.tracking === 'simple').map((i) => i.id)),
+      );
       return {
         response: {
           month: ym,
@@ -478,6 +499,7 @@ export function runTool(name: string, args: Record<string, unknown>, env: ToolEn
           boughtNotUsed: u.boughtVsUsed
             .slice(0, 5)
             .map((x) => ({ name: x.name, bought: fmtQty(x.bought, x.unit), used: fmtQty(x.used, x.unit) })),
+          ranOutOf: u.ranOutOf.slice(0, 8).map((x) => ({ name: x.name, times: x.times, last: x.last })),
         },
       };
     }
@@ -587,6 +609,9 @@ export function runTool(name: string, args: Record<string, unknown>, env: ToolEn
       const changes = (Array.isArray(args.changes) ? args.changes : []) as Record<string, unknown>[];
       const steps: CardStep[] = changes.map((c) => {
         const it = findItemLoose(ctx, s(c.itemId));
+        const status = s(c.status);
+        if (status === 'have' || status === 'low' || status === 'out')
+          return { action: 'setItemStatus', input: { itemId: it?.id ?? s(c.itemId) ?? '', status } };
         return {
           action: 'adjustStock',
           input: {

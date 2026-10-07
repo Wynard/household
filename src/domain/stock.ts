@@ -3,24 +3,39 @@ import { O, type Op } from './ops';
 import { convert, toBase } from './units';
 import { STEP_BY_UNIT } from './defaults';
 
-export type StockStatus = 'ok' | 'low' | 'out';
+export type StockStatus = 'have' | 'low' | 'out';
 
-export function stockStatus(it: Pick<Item, 'quantity' | 'lowThreshold'>): StockStatus {
+type StatusFields = Pick<Item, 'tracking' | 'status' | 'quantity' | 'lowThreshold'>;
+
+/** Simple items: their stored status. Amount items: derived from quantity vs threshold. */
+export function stockStatus(it: StatusFields): StockStatus {
+  if (it.tracking === 'simple') return it.status;
   if (it.quantity <= 0) return 'out';
   if (it.lowThreshold && it.quantity < it.lowThreshold) return 'low';
-  return 'ok';
+  return 'have';
 }
 
-/** Below its warning threshold (the rule for auto-adding to the shopping list). */
-export const isBelowThreshold = (it: Pick<Item, 'quantity' | 'lowThreshold'>) =>
-  !!it.lowThreshold && it.lowThreshold > 0 && it.quantity < it.lowThreshold;
+/** Status an amount item would have with this quantity. */
+export const statusForQuantity = (it: Pick<Item, 'lowThreshold'>, quantity: number): StockStatus =>
+  stockStatus({ tracking: 'amount', status: 'have', quantity, lowThreshold: it.lowThreshold });
+
+export const isSimple = (it: Pick<Item, 'tracking'>) => it.tracking === 'simple';
+
+/** Should the item be on the shopping list automatically right now (addToListWhen)? */
+export function wantsOnList(it: Item): boolean {
+  if (!it.showInStock || it.archived) return false;
+  const st = stockStatus(it);
+  if (it.addToListWhen === 'low') return st !== 'have';
+  if (it.addToListWhen === 'out') return st === 'out';
+  return false;
+}
 
 export const stepFor = (it: Pick<Item, 'unit'>) => STEP_BY_UNIT[it.unit];
 
 /**
- * Shopping-list ops that keep low-stock entries in sync for the given items:
- * add an entry when an item drops below its threshold, remove the automatic
- * entry when stock is back up. Only items shown in Stock get alerts.
+ * Shopping-list ops that keep automatic entries in sync for the given items:
+ * add an entry when an item reaches its addToListWhen level (Low or Out),
+ * remove the automatic entry when it's back. Only items shown in Stock.
  */
 export function lowStockSync(
   itemsAfter: Item[],
@@ -33,21 +48,21 @@ export function lowStockSync(
   for (const it of itemsAfter) {
     if (!touched.has(it.id)) continue;
     const open = shopping.find((s) => s.itemId === it.id && !s.checked);
-    const below = it.showInStock && !it.archived && isBelowThreshold(it);
-    if (below && !open) {
+    const want = wantsOnList(it);
+    if (want && !open) {
       ops.push(
         O.shop.upsert({
           id: opts.newId(),
           itemId: it.id,
           name: it.name,
-          unit: it.unit,
+          ...(isSimple(it) ? {} : { unit: it.unit }),
           source: 'low-stock',
           checked: false,
           addedBy: opts.actor,
           addedAt: opts.now,
         }),
       );
-    } else if (!below && open && open.source === 'low-stock') {
+    } else if (!want && open && open.source === 'low-stock') {
       ops.push(O.shop.remove(open.id));
     }
   }

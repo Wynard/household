@@ -4,7 +4,7 @@ import { Chip, Loading } from '../../ui/controls';
 import { IconGrip } from '../../ui/icons';
 import { useToast } from '../../ui/Toast';
 import { normalise } from '../../domain/categorise';
-import { plural } from '../../domain/format';
+import { catLabel, plural } from '../../domain/format';
 import { categoryUse, placeUse, recipeCategoryUse, storeUse } from '../../domain/actions/settings';
 import type { Snapshot } from '../../domain/actions';
 import { ItemEditor } from '../stock/ItemEditor';
@@ -61,7 +61,7 @@ export function ItemsTable() {
           <ChevronRow
             key={i.id}
             title={i.name}
-            sub={`${i.category} › ${i.subcategory}, ${i.place}`}
+            sub={`${catLabel(i.category, i.subcategory)}, ${i.place}`}
             onClick={() => setEditing(i.id)}
             badge={!i.showInStock ? <span className="tag tag-grey">Hidden</span> : undefined}
           />

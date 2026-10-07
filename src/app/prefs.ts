@@ -15,10 +15,17 @@ export interface UiPrefs {
   stockGroup: 'place' | 'category';
   voiceLang: 'ro-RO' | 'en-US';
   assistantOff: boolean;
+  /** Stock sections the person folded away, as 'place:Fridge' or 'category:Pantry' */
+  stockCollapsed: string[];
   /** mock mode only: which sample person you are */
   mockUser?: string;
 }
-const DEFAULT_UI: UiPrefs = { stockGroup: 'place', voiceLang: 'ro-RO', assistantOff: false };
+const DEFAULT_UI: UiPrefs = {
+  stockGroup: 'place',
+  voiceLang: 'ro-RO',
+  assistantOff: false,
+  stockCollapsed: [],
+};
 
 function get(k: string): string | null {
   try {

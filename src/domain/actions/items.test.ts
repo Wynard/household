@@ -80,6 +80,7 @@ describe('item actions', () => {
       category: 'Pantry',
       subcategory: 'Pasta & rice',
       place: 'Pantry',
+      tracking: 'amount',
       unit: 'kg',
       quantity: 0.5,
     });

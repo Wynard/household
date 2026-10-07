@@ -4,7 +4,7 @@ import { Choice, DecimalInput, Field } from '../../ui/controls';
 import { IconClose } from '../../ui/icons';
 import { useMe, useRun, useSnapshot } from '../../app/data';
 import { categorise, findKnownItem } from '../../domain/categorise';
-import { money, num, parseDecimal, qty as fmtQty, round2 } from '../../domain/format';
+import { catLabel, money, num, parseDecimal, qty as fmtQty, round2 } from '../../domain/format';
 import { nowHHmm, todayISO } from '../../domain/dates';
 import { UNITS, type Item, type Purchase, type Unit } from '../../domain/schemas';
 import type { RunResult } from '../../app/data';
@@ -80,7 +80,7 @@ export const lineTotal = (lines: LineDraft[]) =>
 export function purchaseProblem(d: PurchaseDraft): string | null {
   if (!d.store.trim()) return 'Add the store name';
   if (!d.lines.length) return 'Add at least one item';
-  const noCat = d.lines.filter((l) => !l.category || !l.subcategory).length;
+  const noCat = d.lines.filter((l) => !l.category).length;
   if (noCat) return `Pick a category for ${noCat === 1 ? '1 item' : `${noCat} items`}`;
   const badQty = d.lines.find((l) => !(parseDecimal(l.quantity) > 0));
   if (badQty) return `Enter a quantity for ${badQty.name}`;
@@ -107,7 +107,7 @@ export function toActionInput(d: PurchaseDraft) {
       unit: l.unit,
       price: parseDecimal(l.price),
       category: l.category!,
-      subcategory: l.subcategory!,
+      subcategory: l.subcategory ?? '',
       ...(l.note?.trim() ? { note: l.note.trim() } : {}),
       ...(d.id
         ? {}
@@ -375,7 +375,7 @@ export function PurchaseEditor({
               <div className="row-between" style={{ paddingRight: 6 }}>
                 <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                   <span className="small bold" style={{ color: noCat ? 'var(--red)' : 'var(--muted)' }}>
-                    {l.category ? `${l.category} › ${l.subcategory}` : 'Needs a category'}
+                    {l.category ? catLabel(l.category, l.subcategory) : 'Needs a category'}
                   </span>
                   {l.auto && l.category && (
                     <span className="tag tag-cobalt" style={{ fontSize: 12 }}>
@@ -496,7 +496,7 @@ export function PurchaseEditor({
               {!ln.name.trim()
                 ? 'A category is suggested as you type'
                 : guess
-                  ? `Category: ${guess.category} › ${guess.subcategory}`
+                  ? `Category: ${catLabel(guess.category, guess.subcategory)}`
                   : "No category found. You'll pick one after adding."}
             </span>
             <div className="row" style={{ gap: 8 }}>

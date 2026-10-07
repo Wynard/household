@@ -1,23 +1,26 @@
 import { z } from 'zod';
 import { defineAction, type Ctx } from './types';
 import { O, type Op } from '../ops';
-import { lowStockSync } from '../stock';
-import { plural, qty as fmtQty, round3 } from '../format';
+import { lowStockSync, statusForQuantity, stockStatus } from '../stock';
+import { catLabel, plural, qty as fmtQty, round3 } from '../format';
 import { convert } from '../units';
 import { unitSchema, type Item } from '../schemas';
 import { budgetFileName, usageFileName } from '../files';
-import { findItem } from './stock';
+import { findItem, statusLabel } from './stock';
 
 const itemInput = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1, 'needs a name'),
   category: z.string().min(1, 'needs a category'),
-  subcategory: z.string().min(1, 'needs a subcategory'),
+  subcategory: z.string().default(''),
   categorySource: z.enum(['auto', 'manual']).default('manual'),
   place: z.string().min(1),
   showInStock: z.boolean().default(true),
-  unit: unitSchema,
-  quantity: z.number().finite().min(0),
+  tracking: z.enum(['simple', 'amount']).default('simple'),
+  status: z.enum(['have', 'low', 'out']).default('have'),
+  addToListWhen: z.enum(['low', 'out', 'never']).default('out'),
+  unit: unitSchema.default('pcs'),
+  quantity: z.number().finite().min(0).default(0),
   lowThreshold: z.number().finite().min(0).optional(),
   gramsPerPiece: z.number().positive().optional(),
   aliases: z.array(z.string()).optional(),
@@ -27,9 +30,12 @@ export type ItemInput = z.input<typeof itemInput>;
 const FIELD_LABEL: Partial<Record<keyof Item, string>> = {
   name: 'Name',
   place: 'Place',
+  tracking: 'Tracking',
+  status: 'Status',
   unit: 'Unit',
   quantity: 'In the house',
   lowThreshold: 'Warn below',
+  addToListWhen: 'Add to the list when',
   showInStock: 'Show in Stock',
 };
 
@@ -38,6 +44,16 @@ function renameShoppingOps(ctx: Ctx, itemId: string, name: string): Op[] {
   return ctx.snap.shopping.items
     .filter((s) => s.itemId === itemId && s.name !== name)
     .map((s) => O.shop.patch(s.id, { name }));
+}
+
+export const categoryExists = (ctx: Pick<Ctx, 'snap'>, category: string, subcategory: string) =>
+  ctx.snap.household.categories.some(
+    (c) => c.name === category && (!subcategory || c.subcategories.includes(subcategory)),
+  );
+
+function describeStock(it: Item): string {
+  if (it.tracking === 'simple') return `${statusLabel(it.status)}, tracked as have / low / out`;
+  return `${fmtQty(it.quantity, it.unit)} in the house${it.lowThreshold ? `, warn below ${fmtQty(it.lowThreshold, it.unit)}` : ''}`;
 }
 
 export const upsertItem = defineAction({
@@ -54,10 +70,11 @@ export const upsertItem = defineAction({
         ops: [],
         blocked: `There's no storage place called ${input.place}.`,
       };
-    const tree = ctx.snap.household.categories;
-    if (!tree.some((c) => c.name === input.category && c.subcategories.includes(input.subcategory)))
+    if (!categoryExists(ctx, input.category, input.subcategory))
       return { title: 'Save item', lines: [], ops: [], blocked: 'Pick a category that exists.' };
 
+    const amount = input.tracking === 'amount';
+    const quantity = round3(input.quantity);
     const fields: Omit<Item, 'id' | 'aliases'> = {
       name: input.name.trim(),
       category: input.category,
@@ -65,9 +82,13 @@ export const upsertItem = defineAction({
       categorySource: input.categorySource,
       place: input.place,
       showInStock: input.showInStock,
+      tracking: input.tracking,
+      // amount items keep their status in step with the quantity
+      status: amount ? statusForQuantity(input, quantity) : input.status,
+      addToListWhen: input.addToListWhen,
       unit: input.unit,
-      quantity: round3(input.quantity),
-      ...(input.lowThreshold ? { lowThreshold: input.lowThreshold } : {}),
+      quantity: amount ? quantity : 0,
+      ...(amount && input.lowThreshold ? { lowThreshold: input.lowThreshold } : {}),
       ...(input.gramsPerPiece ? { gramsPerPiece: input.gramsPerPiece } : {}),
     };
 
@@ -80,8 +101,8 @@ export const upsertItem = defineAction({
       return {
         title: `Add ${item.name} to ${item.place}`,
         lines: [
-          `${item.category} › ${item.subcategory}`,
-          `${fmtQty(item.quantity, item.unit)} in the house${item.lowThreshold ? `, warn below ${fmtQty(item.lowThreshold, item.unit)}` : ''}`,
+          catLabel(item.category, item.subcategory),
+          describeStock(item),
           ...(item.showInStock ? [] : ['Hidden from Stock']),
         ],
         ops,
@@ -102,9 +123,9 @@ export const upsertItem = defineAction({
     }
     if (existing.category !== fields.category || existing.subcategory !== fields.subcategory)
       lines.push(
-        `Category: ${existing.category} › ${existing.subcategory} → ${fields.category} › ${fields.subcategory}`,
+        `Category: ${catLabel(existing.category, existing.subcategory)} → ${catLabel(fields.category, fields.subcategory)}`,
       );
-    if (existing.lowThreshold && !input.lowThreshold) unset.push('lowThreshold');
+    if (existing.lowThreshold && !fields.lowThreshold) unset.push('lowThreshold');
     if (existing.gramsPerPiece && !input.gramsPerPiece) unset.push('gramsPerPiece');
     if (input.aliases && JSON.stringify(input.aliases) !== JSON.stringify(existing.aliases))
       set.aliases = input.aliases;
@@ -145,7 +166,7 @@ export const deleteItem = defineAction({
     return {
       title: `Delete ${it.name}`,
       lines: [
-        `${it.name}, ${it.category} › ${it.subcategory}, ${it.place}`,
+        `${it.name}, ${catLabel(it.category, it.subcategory)}, ${it.place}`,
         ...(shop.length ? [`Also removes it from the shopping list`] : []),
         'Past purchases and usage keep their history',
       ],
@@ -190,7 +211,15 @@ export const mergeItems = defineAction({
       return { title: 'Merge items', lines: [], ops: [], blocked: 'Pick at least two items.' };
     let quantity = keep.quantity;
     const lines: string[] = [];
+    const simple = keep.tracking === 'simple';
+    // simple items have no amounts to add up: the merged item keeps the best status
+    const rank = { have: 0, low: 1, out: 2 } as const;
+    const best = [keep, ...others].map((i) => stockStatus(i)).sort((a, b) => rank[a] - rank[b])[0];
     for (const o of others) {
+      if (simple || o.tracking === 'simple') {
+        lines.push(`${o.name} merges into ${keep.name}`);
+        continue;
+      }
       const q = convert(o.quantity, o.unit, keep.unit, o.gramsPerPiece ?? keep.gramsPerPiece);
       if (q === null)
         return {
@@ -207,7 +236,7 @@ export const mergeItems = defineAction({
     ).filter((a) => a !== keep.name);
     const ids = new Set(others.map((o) => o.id));
     const ops: Op[] = [
-      O.item.patch(keep.id, { quantity, aliases }),
+      O.item.patch(keep.id, simple ? { status: best, aliases } : { quantity, aliases }),
       ...others.map((o) => O.item.remove(o.id)),
     ];
     // re-point everything that referenced the merged items
@@ -237,7 +266,8 @@ export const mergeItems = defineAction({
       const f = O.usage(usageFileName(u.year));
       for (const e of u.usage) if (ids.has(e.itemId)) ops.push(f.patch(e.id, { itemId: keep.id }));
     }
-    lines.push(`${keep.name}: ${fmtQty(keep.quantity, keep.unit)} → ${fmtQty(quantity, keep.unit)}`);
+    if (!simple)
+      lines.push(`${keep.name}: ${fmtQty(keep.quantity, keep.unit)} → ${fmtQty(quantity, keep.unit)}`);
     return {
       title: `Merge ${plural(others.length + 1, 'item')} into ${keep.name}`,
       lines,
@@ -258,7 +288,7 @@ export const addCategory = defineAction({
       return { title: `New category ${name}`, lines: [], ops: [], blocked: 'That category already exists.' };
     return {
       title: `New category: ${name}`,
-      lines: [`Subcategories: ${subcategories.join(', ')}`],
+      lines: subcategories.length ? [`Subcategories: ${subcategories.join(', ')}`] : [],
       ops: [O.household.catAdd(name, subcategories)],
     };
   },
