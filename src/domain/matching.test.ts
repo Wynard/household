@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { matchReceiptLine, similarity } from './matching';
 import { seedSnapshot } from '../test/ctx';
+import type { Item } from './schemas';
 
 const items = seedSnapshot().items.items;
 
@@ -36,5 +37,42 @@ describe('receipt line matching', () => {
 
   it('returns no match for unknown products', () => {
     expect(matchReceiptLine('HUMUS CLASIC 200G', 'Hummus', items)).toMatchObject({ via: 'none' });
+  });
+});
+
+describe('matching traps (fictional catalog in the imported-list style)', () => {
+  const mk = (id: string, name: string) =>
+    ({ id, name, aliases: [], archived: false, category: 'X', subcategory: '' }) as unknown as Item;
+  const own = [
+    mk('lapte', 'Lapte'),
+    mk('tofu', 'Tofu'),
+    mk('pasta', 'Pasta'),
+    mk('mazare', 'Mazare'),
+    mk('mazarec', 'Mazare (congelat)'),
+    mk('marar', 'Marar fresh'),
+  ];
+
+  it('oat milk is not milk, cat litter is not tofu, toothpaste is not pasta', () => {
+    expect(matchReceiptLine('LAPTE OVAZ 1L', 'Lapte ovaz', own)).toMatchObject({ via: 'none' });
+    expect(matchReceiptLine('NISIP TOFU 6L', 'Nisip tofu', own)).toMatchObject({ via: 'none' });
+    expect(matchReceiptLine('PASTA DINTI 75ML', 'Pasta dinti', own)).toMatchObject({ via: 'none' });
+    // and Gemini can't push them through either
+    expect(
+      matchReceiptLine('LAPTE OVAZ 1L', 'Lapte ovaz', own, { itemId: 'lapte', confidence: 0.9 }),
+    ).toMatchObject({
+      via: 'none',
+    });
+  });
+
+  it('fresh and frozen versions are different items', () => {
+    expect(matchReceiptLine('MAZARE CONGELATA 400G', 'Mazare congelata', own)).toMatchObject({
+      itemId: 'mazarec',
+    });
+    expect(matchReceiptLine('MAZARE BOABE 500G', 'Mazare', own)).toMatchObject({ itemId: 'mazare' });
+    expect(matchReceiptLine('MARAR LEGATURA', 'Marar', own)).toMatchObject({ via: 'none' });
+  });
+
+  it('plain lines still match the plain item', () => {
+    expect(matchReceiptLine('LAPTE 3,5% 1L', 'Lapte', own)).toMatchObject({ itemId: 'lapte' });
   });
 });

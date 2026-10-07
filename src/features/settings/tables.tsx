@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useRun, useSnapshot } from '../../app/data';
 import { Chip, Loading } from '../../ui/controls';
 import { IconGrip } from '../../ui/icons';
@@ -19,6 +20,7 @@ export function ItemsTable() {
   const [q, setQ] = useState('');
   const [f, setF] = useState<'all' | 'shown' | 'hidden'>('all');
   const [editing, setEditing] = useState<string | null | undefined>(undefined);
+  const nav = useNavigate();
   if (!snap) return <Loading />;
   const items = snap.items.items;
   const shown = items.filter((i) => i.showInStock).length;
@@ -45,6 +47,14 @@ export function ItemsTable() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
+      <button
+        type="button"
+        className="btn btn-outline btn-block"
+        style={{ marginTop: 12 }}
+        onClick={() => nav('/settings/items/import')}
+      >
+        Import a list
+      </button>
       <div className="wrap" style={{ margin: '12px 0' }}>
         <Chip pressed={f === 'all'} onClick={() => setF('all')}>
           All {items.length}

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useRun, useSnapshot } from '../../app/data';
 import { useScreenContext } from '../../app/assistantUi';
 import { prefs } from '../../app/prefs';
@@ -38,6 +39,7 @@ export function StockScreen() {
   useScreenContext('stock', 'Looking at Stock');
   const { snap, error, refetch } = useSnapshot();
   const { run } = useRun();
+  const nav = useNavigate();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [group, setGroupState] = useState<Group>(() => prefs.ui().stockGroup);
@@ -202,7 +204,17 @@ export function StockScreen() {
       })}
       {groups.length === 0 &&
         (shown.length === 0 ? (
-          <EmptyState>Nothing in stock yet. Tap Add item, or scan a receipt with the Assistant.</EmptyState>
+          <EmptyState>
+            Nothing in stock yet. Start from your own list, or tap Add item.
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              style={{ marginTop: 14 }}
+              onClick={() => nav('/settings/items/import')}
+            >
+              Import your list
+            </button>
+          </EmptyState>
         ) : (
           <EmptyState>Nothing matches. Clear the search or pick another filter.</EmptyState>
         ))}

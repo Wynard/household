@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { SettingsHome } from './SettingsHome';
+import { ImportList } from './ImportList';
 import {
   CategoriesTable,
   ItemsTable,
@@ -17,6 +18,7 @@ export function SettingsRoutes() {
     <Routes>
       <Route index element={<SettingsHome />} />
       <Route path="items" element={<ItemsTable />} />
+      <Route path="items/import" element={<ImportList />} />
       <Route path="categories" element={<CategoriesTable />} />
       <Route path="places" element={<PlacesTable />} />
       <Route path="recipes" element={<RecipesTable />} />

@@ -2,6 +2,7 @@
 // Assistant — goes through one of these. Add new actions to ACTIONS.
 import type { ActionDef } from './types';
 import { adjustStock, setItemStatus } from './stock';
+import { importList } from './importList';
 import { addCategory, addSubcategory, deleteItem, mergeItems, moveItems, upsertItem } from './items';
 import {
   addRecipeCategory,
@@ -51,6 +52,7 @@ import {
 } from './settings';
 
 export const ACTIONS = {
+  importList,
   setItemStatus,
   addPurchase,
   updatePurchase,

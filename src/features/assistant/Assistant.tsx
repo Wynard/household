@@ -10,6 +10,8 @@ import { useOverlay } from '../../ui/overlay';
 import { runTurn } from '../../ai/assistant/engine';
 import { applyCard, previewSteps, type Card } from '../../ai/assistant/cards';
 import { recipeCard, type Link } from '../../ai/assistant/tools';
+import { looksLikeList, parseList } from '../../domain/listImport';
+import { setPendingList } from '../../app/importHandoff';
 import { GeminiError, geminiKey, geminiMessage } from '../../ai/gemini';
 import { compressPhoto, type CompressedPhoto } from '../../ai/image';
 import { readReceipt, receiptToDraft } from '../../ai/receipt';
@@ -177,6 +179,18 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
     if (thinking || (!text && !photos.length) || !me || !snap) return;
     speech.stop();
     setInput('');
+    if (!photos.length && looksLikeList(text)) {
+      // a pasted shopping list: imported on the phone, never sent to Gemini or kept in the chat
+      const n = parseList(text).reduce((t, s) => t + s.items.length, 0);
+      setPendingList(text);
+      push({ role: 'user', text: `Pasted a list (${n} items)` });
+      push({
+        role: 'assistant',
+        text: 'That looks like your item list. Open the import to check the sections and places first. Nothing changes until you tap Import.',
+        links: [{ label: 'Import this list', to: '/settings/items/import' }],
+      });
+      return;
+    }
     if (!geminiKey()) {
       push({ role: 'user', text: text || 'Receipt photo', photos: photos.length || undefined });
       failure(
@@ -584,6 +598,14 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
               }
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onPaste={(e) => {
+                // the input is one line: catch a pasted list before its line breaks are lost
+                const pasted = e.clipboardData.getData('text');
+                if (!textImport && !photos.length && looksLikeList(pasted)) {
+                  e.preventDefault();
+                  void send(pasted);
+                }
+              }}
               enterKeyHint="send"
             />
             <button

@@ -34,6 +34,9 @@ export const RULES: Rule[] = [
     'Health',
   ],
 
+  // ---- Pets (before everything: "nisip tofu" is cat litter, not tofu) ----
+  [/nisip|litter|asternut|hrana (pentru )?(pisic|caini)|cat food|dog food/, 'Household', 'Pets'],
+
   // ---- Household (laundry before cleaning: "laundry detergent", "detergent rufe") ----
   [
     /laundry|rufe|ariel|persil|fabric softener|softener|balsam (de )?rufe|lenor|perwoll|wash(ing)? powder|capsule de spalat/,
@@ -64,6 +67,13 @@ export const RULES: Rule[] = [
     'Ready meals',
   ],
   [/frozen|congelat|surgelat/, 'Frozen', 'Frozen vegetables'],
+
+  // ---- Plant milks (before Pantry: "lapte ovaz" is milk, not oats) ----
+  [
+    /(lapte|bautura|drink|milk) (de |din )?(ovaz|soia|migdale|cocos|orez|oat|soy|almond|coconut|rice)|(oat|soy|almond|coconut|rice) (milk|drink)/,
+    'Dairy & eggs',
+    'Milk',
+  ],
 
   // ---- Pantry items that would otherwise hit Drinks/Dairy/Produce ----
   [/vinegar|otet/, 'Pantry', 'Oils & sauces'],
@@ -203,8 +213,9 @@ export function ruleCategory(name: string): { category: string; subcategory: str
   return null;
 }
 
+// a category on its own (no subcategory) is fine: imported lists have none
 const inTree = (tree: CategoryTree, c: string, s: string) =>
-  tree.some((n) => n.name === c && n.subcategories.includes(s));
+  tree.some((n) => n.name === c && (!s || n.subcategories.includes(s)));
 
 /** Suggests a category for a new name, or null ("Needs a category"). */
 export function categorise(name: string, items: Item[], tree: CategoryTree): CategoryGuess | null {

@@ -124,3 +124,27 @@ describe('categorise', () => {
     expect(categorise('Smântână', items, renamed)).toBeNull();
   });
 });
+
+describe('traps from our own kind of list (fictional names)', () => {
+  it('categorises by what the thing is, not by a word it shares', () => {
+    expect(cat('Pasta dinti')).toBe('Personal care › Hygiene'); // toothpaste, not pasta
+    expect(cat('Nisip tofu')).toBe('Household › Pets'); // cat litter, not tofu
+    expect(cat('Lapte ovaz')).toBe('Dairy & eggs › Milk'); // oat milk, not oats
+    expect(cat('Mazare congelata')).toBe('Frozen › Frozen vegetables');
+    expect(cat('Mazare')).toBe('Produce › Vegetables');
+  });
+
+  it('known items in a tree without subcategories still count', () => {
+    const tree = [{ name: 'Lactate & oua', subcategories: [] }];
+    const own = [
+      { id: 'l', name: 'Lapte', category: 'Lactate & oua', subcategory: '', aliases: [], archived: false },
+    ] as unknown as Item[];
+    expect(categorise('lapte', own, tree)).toMatchObject({
+      via: 'known',
+      category: 'Lactate & oua',
+      subcategory: '',
+    });
+    // with our own tree the English rules have nowhere to go: no wrong guess
+    expect(categorise('Lapte ovaz', own, tree)).toBeNull();
+  });
+});

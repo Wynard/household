@@ -19,6 +19,37 @@ export function coreWords(s: string): string[] {
     );
 }
 
+/**
+ * Words that make a different product, not a different brand or size: fresh vs
+ * frozen peas, oat milk vs milk, toothpaste ("pasta dinti") vs pasta, cat litter
+ * ("nisip tofu") vs tofu. Two names with different kinds never match.
+ */
+const KINDS: [RegExp, string][] = [
+  [/^(congel|surgel|frozen|freez)/, 'frozen'],
+  [/^(fresh|proasp)/, 'fresh'],
+  [/^(uscat|dried|deshidrat)/, 'dried'],
+  [/^(ovaz|oat)/, 'oat'],
+  [/^(soia|soy)/, 'soy'],
+  [/^(migdal|almond)/, 'almond'],
+  [/^(cocos|coconut)/, 'coconut'],
+  [/^(dinti|tooth|dentifric|dental)/, 'teeth'],
+  [/^(nisip|litter|asternut)/, 'litter'],
+  [/^(decofein|decaf)/, 'decaf'],
+];
+
+export function kindsOf(s: string): string {
+  const out = new Set<string>();
+  for (const w of coreWords(s)) for (const [re, k] of KINDS) if (re.test(w)) out.add(k);
+  return [...out].sort().join(',');
+}
+
+const sameKind = (a: string, b: string) => kindsOf(a) === kindsOf(b);
+const sameHead = (a: string, b: string) => {
+  const x = coreWords(a)[0];
+  const y = coreWords(b)[0];
+  return !!x && !!y && (x === y || (x.length >= 3 && y.startsWith(x)) || (y.length >= 3 && x.startsWith(y)));
+};
+
 /** Dice coefficient over word-prefix tokens (handles receipt abbreviations: "PIEPT PUI" ~ "piept de pui"). */
 export function similarity(a: string, b: string): number {
   const A = coreWords(a);
@@ -55,7 +86,10 @@ export function matchReceiptLine(
   }
   // 2. normalised fuzzy match
   let best: { item: Item; score: number } | null = null;
+  // the line's kind (frozen, oat, teeth…) comes from the cleaned-up name and the raw text together
+  const lineKind = `${name} ${raw}`;
   for (const i of live) {
+    if (!sameKind(lineKind, i.name)) continue;
     const score = Math.max(
       similarity(name, i.name),
       similarity(raw, i.name),
@@ -63,7 +97,9 @@ export function matchReceiptLine(
     );
     if (!best || score > best.score) best = { item: i, score };
   }
-  const geminiItem = gemini?.itemId ? live.find((i) => i.id === gemini.itemId) : undefined;
+  const suggested = gemini?.itemId ? live.find((i) => i.id === gemini.itemId) : undefined;
+  // Gemini can fall for the same traps: never accept a match of a different kind
+  const geminiItem = suggested && sameKind(lineKind, suggested.name) ? suggested : undefined;
   if (best && best.score >= 0.8)
     return { itemId: best.item.id, via: 'fuzzy', confidence: Math.min(0.95, best.score) };
   // 3. Gemini's suggestion (only if it names a real item)
@@ -76,6 +112,8 @@ export function matchReceiptLine(
       confidence: best?.item.id === geminiItem.id ? Math.max(c, 0.8) : Math.min(c, 0.85),
     };
   }
-  if (best && best.score >= 0.6) return { itemId: best.item.id, via: 'fuzzy', confidence: 0.55 };
+  // a weak match needs the same head word: "Nisip tofu" is not "Tofu"
+  if (best && best.score >= 0.6 && (sameHead(name, best.item.name) || sameHead(raw, best.item.name)))
+    return { itemId: best.item.id, via: 'fuzzy', confidence: 0.55 };
   return { via: 'none', confidence: gemini?.confidence ?? 0.5 };
 }
