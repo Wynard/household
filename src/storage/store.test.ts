@@ -81,3 +81,32 @@ describe('DataStore', () => {
     );
   });
 });
+
+describe('newer schema guard', () => {
+  it('refuses to read or write a file saved by a newer app version', async () => {
+    const { store, adapter } = setup();
+    await store.ensure('items');
+    adapter.externalEdit('items', (d) => ({ ...(d as object), schemaVersion: 99 }));
+    await expect(store.commit([O.item.inc('eggs', 1)])).rejects.toThrow(/updated on another phone/);
+    const raw = (await adapter.readJson<ItemsFile>('items')).data;
+    expect(raw.schemaVersion).toBe(99);
+    expect(qtyOf(raw, 'eggs')).toBe(4); // untouched
+    await expect(store.load('items')).rejects.toMatchObject({ name: 'NewerVersionError' });
+  });
+});
+
+describe('live sync', () => {
+  it('re-reads only the files the other person changed', async () => {
+    const { store, adapter, qc } = setup();
+    await store.ensure('items');
+    await store.ensure('shopping');
+    expect(await store.syncChanges()).toEqual([]);
+    adapter.externalEdit('items', (d) => {
+      const f = d as ItemsFile;
+      f.items.find((i) => i.id === 'eggs')!.quantity = 12;
+      return f;
+    });
+    expect(await store.syncChanges()).toEqual(['items']);
+    expect(qtyOf(qc.getQueryData<Loaded<ItemsFile>>(fileKey('items'))!.data, 'eggs')).toBe(12);
+  });
+});

@@ -185,6 +185,22 @@ export class DataStore {
     throw new Error(`${fileNameOnDisk(file)} keeps changing. Try again in a moment.`);
   }
 
+  /**
+   * Live updates: asks for every file's version in one call and re-reads only
+   * the files the other person changed. Returns the names that changed.
+   */
+  async syncChanges(): Promise<DataFile[]> {
+    if (!this.adapter.versions) return [];
+    const remote = await this.adapter.versions();
+    const changed: DataFile[] = [];
+    for (const [file, local] of this.confirmed) {
+      const v = remote[file];
+      if (v !== undefined && v !== local.version && !this.inFlight.get(file)?.length) changed.push(file);
+    }
+    await Promise.all(changed.map((f) => this.qc.refetchQueries({ queryKey: fileKey(f) })));
+    return changed;
+  }
+
   /** Re-reads every cached file (used on focus so you see your partner's changes). */
   refreshAll() {
     return this.qc.invalidateQueries({ queryKey: ['file'] });

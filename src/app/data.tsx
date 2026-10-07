@@ -65,7 +65,8 @@ export function useSnapshot(): {
   const error = (results.find((r) => r.error)?.error as Error | undefined) ?? null;
   const dataStamp = results.map((r) => r.dataUpdatedAt).join(',');
   const snap = useMemo(() => {
-    if (loading) return undefined;
+    // every file must have loaded; a failed one (e.g. newer version) leaves the snapshot empty
+    if (loading || results.some((r) => !r.data)) return undefined;
     const by = new Map(files.map((f, i) => [f, results[i].data as Loaded<unknown> | undefined]));
     const get = <T,>(f: DataFile) => by.get(f)?.data as T;
     const budgets: Snapshot['budgets'] = {};

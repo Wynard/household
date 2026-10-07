@@ -57,8 +57,20 @@ export class MockAdapter implements StorageAdapter {
     }
   }
 
+  /** Picks up writes from another tab (so two tabs act like two phones). */
+  private refresh(name: string) {
+    if (!this.persist) return;
+    try {
+      const raw = localStorage.getItem(PREFIX + name);
+      if (raw) this.mem.set(name, JSON.parse(raw) as Stored);
+    } catch {
+      /* keep memory */
+    }
+  }
+
   async readJson<T>(name: DataFile): Promise<{ data: T; version: string }> {
     if (this.latency) await wait();
+    this.refresh(name);
     const s = this.mem.get(name);
     if (!s) throw new NotFoundError(name);
     return { data: structuredClone(s.data) as T, version: s.version };
@@ -70,12 +82,21 @@ export class MockAdapter implements StorageAdapter {
       this.failNextWrite = null;
       throw new Error(`Couldn't save ${fileNameOnDisk(name)}. Check your connection.`);
     }
+    this.refresh(name);
     const cur = this.mem.get(name);
     const curVersion = cur?.version ?? null;
     if (curVersion !== expectedVersion) throw new ConflictError(name);
     const version = String(Number(curVersion ?? '0') + 1);
     this.save(name, { data: structuredClone(data), version });
     return { version };
+  }
+
+  async versions(): Promise<Partial<Record<DataFile, string>>> {
+    if (this.latency) await wait();
+    for (const k of [...this.mem.keys()]) this.refresh(k);
+    return Object.fromEntries([...this.mem].map(([k, v]) => [k, v.version])) as Partial<
+      Record<DataFile, string>
+    >;
   }
 
   /** Simulates the partner editing a file (used by tests and the dev tools). */

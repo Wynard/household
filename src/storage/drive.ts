@@ -127,6 +127,19 @@ export class DriveAdapter implements StorageAdapter {
     return [...this.known.keys()].filter((n) => !this.index.has(n));
   }
 
+  /** One request: the version of every data file this phone can see. */
+  async versions(): Promise<Partial<Record<DataFile, string>>> {
+    const files = await this.listFolder();
+    const out: Partial<Record<DataFile, string>> = {};
+    for (const f of files) {
+      if (!f.name.endsWith('.json') || !f.version) continue;
+      const name = f.name.replace(/\.json$/, '') as DataFile;
+      out[name] = f.version;
+      if (!this.index.has(name)) this.index.set(name, f.id); // a file that just became visible
+    }
+    return out;
+  }
+
   // ---------- StorageAdapter ----------
   async readJson<T>(name: DataFile): Promise<{ data: T; version: string }> {
     await this.ensureIndex();

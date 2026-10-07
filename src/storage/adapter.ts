@@ -12,6 +12,11 @@ export interface StorageAdapter {
   uploadImage(path: string, blob: Blob): Promise<{ fileId: string }>;
   /** Object URL for display. The caller revokes it when done. */
   getImageUrl(fileId: string): Promise<string>;
+  /**
+   * Current version of every data file, in one cheap call (used to notice the
+   * other person's changes without re-reading everything).
+   */
+  versions?(): Promise<Partial<Record<DataFile, string>>>;
   /** Removes an uploaded image (used by undo of a receipt scan). */
   deleteImage?(fileId: string): Promise<void>;
 }

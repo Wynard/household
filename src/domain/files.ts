@@ -124,10 +124,25 @@ export class DataValidationError extends Error {
   }
 }
 
+/**
+ * The file was saved by a newer version of the app. This version must not
+ * write to it (it would drop fields it doesn't know); the person reloads.
+ */
+export class NewerVersionError extends Error {
+  constructor(
+    public file: DataFile,
+    public version: number,
+  ) {
+    super('This app was updated on another phone. Reload to continue.');
+    this.name = 'NewerVersionError';
+  }
+}
+
 /** Validate (and migrate) a file read from storage. */
 export function parseFile<F extends DataFile>(f: F, raw: unknown): FileData<F> {
   let obj = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   let v = typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 1;
+  if (v > SCHEMA_VERSION) throw new NewerVersionError(f, v);
   while (v < SCHEMA_VERSION && MIGRATIONS[v]) {
     obj = MIGRATIONS[v](obj, f);
     v = obj.schemaVersion as number;

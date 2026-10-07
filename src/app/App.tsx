@@ -18,6 +18,8 @@ import { ShoppingScreen } from '../features/shopping/ShoppingScreen';
 import { BudgetScreen } from '../features/budget/BudgetScreen';
 import { Loading } from '../ui/controls';
 import { useAssistantUi } from './assistantUi';
+import { UpdateGate } from './UpdateGate';
+import { useLiveSync } from './liveSync';
 
 // Less-used areas load on demand to keep the first load small on phones.
 const SettingsRoutes = lazy(() =>
@@ -109,6 +111,7 @@ export function AppShell({
   /** status banners shown above every screen (reconnect, file access, sharing) */
   banners?: ReactNode;
 }) {
+  useLiveSync(store);
   return (
     <QueryClientProvider client={qc}>
       <SessionProvider value={session}>
@@ -120,6 +123,7 @@ export function AppShell({
                   {banners}
                   <Routed />
                   <LazyAssistant />
+                  <UpdateGate />
                 </ToastProvider>
               </Frame>
             </AssistantUiProvider>
