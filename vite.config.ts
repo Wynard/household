@@ -34,15 +34,32 @@ function cspPlugin(): Plugin {
   };
 }
 
+// Each build gets an ID. The app compares it with version.json (never cached)
+// when it comes back to the foreground, so a phone that keeps the installed app
+// open for days still picks up new versions (src/app/appUpdate.ts).
+const BUILD_ID = new Date().toISOString();
+
+function versionPlugin(): Plugin {
+  return {
+    name: 'household-version',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), ['VITE_', 'HH_']);
   const base = env.VITE_BASE ? `/${env.VITE_BASE.replace(/^\/|\/$/g, '')}/` : '/';
   return {
     base,
     envPrefix: ['VITE_', 'HH_'],
+    define: { __BUILD_ID__: JSON.stringify(mode === 'test' ? 'test' : BUILD_ID) },
     plugins: [
       react(),
       cspPlugin(),
+      versionPlugin(),
       VitePWA({
         registerType: 'autoUpdate',
         // an external registerSW.js keeps the page free of inline scripts (CSP)

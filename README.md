@@ -2,7 +2,9 @@
 
 A private household app for two people, mostly used on phones and installed to the home screen.
 
-- **Stock**: what's at home (food, cleaning products, toiletries, medicine), by storage place or category, with low-stock alerts.
+- **Stock**: what's at home (food, cleaning products, toiletries, medicine), by storage place or category. Most things are
+  tracked simply as **Have · Low · Out**; the ones recipes measure can be tracked by exact amount. Running out puts things on the
+  shopping list. Start by importing your own Markdown list (Settings › Items › Import a list).
 - **Recipes**: favourites and categories, checked against stock, a servings scaler, a step-by-step cooking mode with timers,
   and a **week plan** that reserves stock meal by meal.
 - **Shopping**: one shared list, filled by hand, by low stock, by recipes and by the plan.

@@ -7,3 +7,5 @@ interface ImportMetaEnv {
   readonly HH_PICKER_API_KEY?: string;
   readonly HH_GOOGLE_PROJECT_NUMBER?: string;
 }
+
+declare const __BUILD_ID__: string;

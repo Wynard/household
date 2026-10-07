@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { FullScreen } from '../ui/Sheet';
+import { reloadApp } from './appUpdate';
 
 /**
  * If any data file was saved by a newer version of the app, this version
@@ -29,18 +30,7 @@ export function UpdateGate() {
           The other phone saved your data with a newer version of Household. Reload to get it. Nothing was
           changed on this phone.
         </p>
-        <button
-          type="button"
-          className="btn btn-primary btn-lg btn-block"
-          onClick={async () => {
-            try {
-              await (await navigator.serviceWorker?.getRegistration())?.update();
-            } catch {
-              /* no service worker */
-            }
-            location.reload();
-          }}
-        >
+        <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => void reloadApp()}>
           Reload to continue
         </button>
       </div>

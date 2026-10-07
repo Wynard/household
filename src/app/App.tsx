@@ -20,6 +20,7 @@ import { Loading } from '../ui/controls';
 import { useAssistantUi } from './assistantUi';
 import { UpdateGate } from './UpdateGate';
 import { useLiveSync } from './liveSync';
+import { AppUpdateBanner } from './appUpdate';
 
 // Less-used areas load on demand to keep the first load small on phones.
 const SettingsRoutes = lazy(() =>
@@ -120,6 +121,7 @@ export function AppShell({
             <AssistantUiProvider>
               <Frame>
                 <ToastProvider>
+                  <AppUpdateBanner store={store} />
                   {banners}
                   <Routed />
                   <LazyAssistant />

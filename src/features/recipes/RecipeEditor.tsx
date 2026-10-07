@@ -8,7 +8,7 @@ import { normalise } from '../../domain/categorise';
 import { num, parseDecimal, qty as fmtQty } from '../../domain/format';
 import { detectTimerSeconds, totalMinutes } from '../../domain/recipes';
 import { isStockUnit } from '../../domain/units';
-import type { Ingredient, Item, Recipe } from '../../domain/schemas';
+import type { Ingredient, Item, Recipe, Unit } from '../../domain/schemas';
 import { ItemEditor } from '../stock/ItemEditor';
 
 type StepDraft = { id: string; text: string; timer: string };
@@ -86,6 +86,9 @@ export function RecipeEditor({
   const [newCat, setNewCat] = useState<string | null>(null);
   const [creatingItem, setCreatingItem] = useState<string | null>(null);
   const [tried, setTried] = useState(false);
+  // "Track exact amounts of X?" for ingredients linked to simple items
+  const [keptSimple, setKeptSimple] = useState<Set<string>>(new Set());
+  const [tracking, setTracking] = useState<{ itemId: string; unit: Unit; qty: string } | null>(null);
   const upd = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
 
   const items = useMemo(() => snap?.items.items.filter((i) => !i.archived) ?? [], [snap]);
@@ -148,6 +151,26 @@ export function RecipeEditor({
       ...(a > 0 ? { amount: a, unit: picked.unit } : {}),
       ...(old?.optional ? { optional: true } : {}),
     });
+  };
+
+  /** Unit to suggest when switching a simple item to amounts: the recipe's unit if stock can hold it. */
+  const suggestUnit = (g: Ingredient, item: Item): Unit =>
+    g.unit && isStockUnit(g.unit) ? g.unit : item.unit === 'pcs' && g.amount === undefined ? 'g' : item.unit;
+
+  const trackAmounts = async () => {
+    if (!tracking) return;
+    const item = byId.get(tracking.itemId);
+    const q = parseDecimal(tracking.qty);
+    if (!item || !(q >= 0) || !tracking.qty.trim()) {
+      toast.show('Enter how much is in the house now');
+      return;
+    }
+    const res = await run(
+      'upsertItem',
+      { ...item, tracking: 'amount', unit: tracking.unit, quantity: q },
+      { toast: `${item.name} is now tracked in ${tracking.unit}` },
+    );
+    if (res) setTracking(null);
   };
 
   const save = async () => {
@@ -309,6 +332,68 @@ export function RecipeEditor({
                       <IconClose size={18} />
                     </button>
                   </div>
+                  {item && item.tracking === 'simple' && !keptSimple.has(item.id) && (
+                    <div className="track-ask stack" style={{ gap: 8 }}>
+                      {tracking?.itemId === item.id ? (
+                        <>
+                          <span className="small bold">
+                            How much {item.name.toLowerCase()} is in the house now?
+                          </span>
+                          <div className="row" style={{ gap: 8 }}>
+                            <DecimalInput
+                              className="input input-sm"
+                              aria-label={`${item.name} in the house, in ${tracking.unit}`}
+                              style={{ width: 96 }}
+                              autoFocus
+                              value={tracking.qty}
+                              onChange={(e) => setTracking({ ...tracking, qty: e.target.value })}
+                            />
+                            <span className="small muted">{tracking.unit}</span>
+                            <span className="grow" />
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => setTracking(null)}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => void trackAmounts()}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="small">
+                            Track exact amounts of {item.name.toLowerCase()}? Then cooking takes it out of
+                            stock. Simple items count as there when Have or Low.
+                          </span>
+                          <div className="wrap" style={{ gap: 6 }}>
+                            <button
+                              type="button"
+                              className="chip chip-sm chip-soft"
+                              onClick={() =>
+                                setTracking({ itemId: item.id, unit: suggestUnit(g, item), qty: '' })
+                              }
+                            >
+                              Track in {suggestUnit(g, item)}
+                            </button>
+                            <button
+                              type="button"
+                              className="chip chip-sm"
+                              onClick={() => setKeptSimple((x) => new Set(x).add(item.id))}
+                            >
+                              Keep simple
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {untracked && (
                     <div className="wrap" style={{ gap: 6 }}>
                       <button

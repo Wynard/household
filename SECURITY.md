@@ -10,6 +10,10 @@ This repository is public, so it must never contain anything personal or secret.
   `HH_GOOGLE_PROJECT_NUMBER`) or a git-ignored `.env.local`. They end up in the public bundle, so nothing secret may ever go there.
 - Each person's Gemini API key is entered in Settings and stored only in that device's `localStorage`.
 - Seed and test data use fictional people and `@example.com` addresses only.
+- Your real item list is private. It may sit in the git-ignored `private/` folder to try the importer locally, but its items,
+  categories and contents never go into source code, seed data, test fixtures, commit messages or docs, and are never printed in
+  logs. Committed tests use a small fictional list in the same format; a local-only test reads the private file and skips itself
+  when the file isn't there. In the app, an imported or pasted list stays on the phone and in your Drive; it is never sent to Gemini.
 - Secret scanning in three layers: a gitleaks pre-commit hook, the same check plus an email check in CI before deploy
   (`npm run check:privacy`), and GitHub secret scanning with push protection.
 - Commits use a neutral name, a GitHub no-reply address and UTC timestamps. The check also accepts GitHub's own web-flow

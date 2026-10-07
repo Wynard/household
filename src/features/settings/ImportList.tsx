@@ -141,7 +141,7 @@ export function ImportList() {
             <select
               className="input input-sm"
               aria-label={`Place for ${s.category}`}
-              style={{ width: 150 }}
+              style={{ width: 172, flexShrink: 0, fontSize: 15 }}
               value={s.place}
               onChange={(e) => setPlaces((p) => ({ ...p, [s.category]: e.target.value }))}
             >

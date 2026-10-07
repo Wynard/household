@@ -65,6 +65,11 @@ export class DataStore {
     private whoAmI: () => string,
   ) {}
 
+  /** True while any change is still being saved. */
+  get saving(): boolean {
+    return [...this.inFlight.values()].some((l) => l.length > 0);
+  }
+
   /** What the screens see: confirmed data + in-flight ops. */
   private view(f: DataFile): Loaded<unknown> | undefined {
     const c = this.confirmed.get(f);

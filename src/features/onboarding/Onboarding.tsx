@@ -57,17 +57,25 @@ export function SignInScreen({
   const returning = !!prefs.folderId();
   return (
     <OnboardingFrame>
-      <Brand sub="Stock, recipes, shopping and a shared money pot for the two of you." />
-      <div className="stack-lg">
-        <button type="button" className="btn btn-primary btn-lg btn-block" onClick={onSignIn} disabled={busy}>
-          {busy ? 'Signing in…' : 'Continue with Google'}
-        </button>
-        {error && <p className="problem">{error}</p>}
-        <p className="small muted">
-          {returning
-            ? 'Your household data stays in your Google Drive. Signing in again is needed each time the app starts, because the app never stores your Google sign-in on the phone.'
-            : 'Your data stays in a folder in your own Google Drive, shared only with your partner. The app can only see the files it creates or that you pick.'}
-        </p>
+      {/* the button sits at the bottom of the screen, where a thumb reaches it */}
+      <div className="signin">
+        <Brand sub="Stock, recipes, shopping and a shared money pot for the two of you." />
+        <div className="stack-lg">
+          <p className="small muted" style={{ margin: 0 }}>
+            {returning
+              ? 'Your household data stays in your Google Drive. Signing in again is needed each time the app starts, because the app never stores your Google sign-in on the phone.'
+              : 'Your data stays in a folder in your own Google Drive, shared only with your partner. The app can only see the files it creates or that you pick.'}
+          </p>
+          {error && <p className="problem">{error}</p>}
+          <button
+            type="button"
+            className="btn btn-primary btn-lg btn-block"
+            onClick={onSignIn}
+            disabled={busy}
+          >
+            {busy ? 'Signing in…' : 'Continue with Google'}
+          </button>
+        </div>
       </div>
     </OnboardingFrame>
   );

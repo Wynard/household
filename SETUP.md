@@ -121,6 +121,21 @@ only sends what each request needs and replaces your names with "Person A" and "
 4. If the app later says "Your partner's phone added a file", tap the banner and select the new file the same way. This happens
    rarely, for example when a new year starts.
 
+**Your items (either of you, once):** a new household starts empty. On the Stock tab tap **Import your list** (or
+**Settings** › **Items** › **Import a list**), paste your list or open the file, check the preview and tap **Import**. The format:
+
+```markdown
+**PANTRY**
+- [x] Rice
+- [ ] Olive oil
+### CLEANING
+- [ ] Dish soap
+```
+
+Headings (`###` or a bold line) become categories, `- [x]` means you have it, `- [ ]` means you don't (those can go straight onto
+the shopping list). The preview lets you change where each section is kept. Importing again later only adds new items. You can
+also paste the list into the Assistant; it stays on the phone and is never sent to Gemini.
+
 ## 9. Installing to the home screen
 
 - **Android (Chrome):** open the app, tap the **⋮** menu › **Install app** (or **Add to Home screen**) › **Install**.
@@ -139,9 +154,11 @@ Google sign-in on the phone.
 - **"Some household files aren't shared with this phone yet":** tap the banner and select the files listed.
 - **"Gemini's free limit was reached":** the free tier allows a limited number of requests per minute and per day. Wait a minute.
   If it happens often, switch the model in **Settings** › **This phone** to the Flash-Lite one, which has a higher free limit.
-- **Changes from the other phone don't show:** switch away from the app and back; it reloads your data when it comes back to the
-  front.
-- **Everything is blank after an update:** close the app fully and open it again so the new version loads.
+- **Changes from the other phone don't show:** they appear within a few seconds while the app is open. If not, switch away from
+  the app and back.
+- **Getting new versions:** the app checks for a new version whenever you come back to it. After a minute or more away it
+  reloads by itself; otherwise a blue "A new version of Household is ready" bar appears, tap it. Closing the app fully and opening
+  it again always loads the latest version.
 
 ---
 
