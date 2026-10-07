@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { money, parseDecimal, qty } from './format';
+import { money, parseDecimal, qty, unitPriceLabel } from './format';
 
 describe('format', () => {
   it('formats money the Romanian way', () => {
@@ -23,5 +23,12 @@ describe('format', () => {
     expect(qty(1500, 'g')).toBe('1,5 kg');
     expect(qty(250, 'g')).toBe('250 g');
     expect(qty(6, 'pcs')).toBe('6 pcs');
+  });
+
+  it('labels unit prices per kg, l or piece', () => {
+    expect(unitPriceLabel(11.5, 200, 'g')).toBe('57,50 lei/kg');
+    expect(unitPriceLabel(7.21, 0.6, 'kg')).toBe('12,02 lei/kg');
+    expect(unitPriceLabel(6.8, 6, 'l')).toBe('1,13 lei/l');
+    expect(unitPriceLabel(9.8, 2, 'pcs')).toBe('4,90 lei each');
   });
 });

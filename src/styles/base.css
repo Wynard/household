@@ -1168,3 +1168,113 @@ img {
   border: 1px solid var(--line);
   background: var(--surface);
 }
+
+/* ---------- Settings ---------- */
+.sub-chip {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.sub-chip.dashed-chip {
+  border: 1px dashed var(--cobalt);
+  background: var(--surface);
+  color: var(--cobalt);
+}
+.grip {
+  touch-action: none;
+  cursor: grab;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+/* ---------- Budget ---------- */
+.plate {
+  background: var(--plate);
+  border-radius: 22px;
+  padding: 6px;
+}
+.plate-inner {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 17px;
+  padding: 18px;
+  color: var(--on-plate);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.plate-num {
+  font-family: var(--font-display);
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.plate-btn {
+  background: #ffffff;
+  color: #1f4fa8;
+}
+.plate-btn-outline {
+  border: 2px solid #ffffff;
+  background: transparent;
+  color: #ffffff;
+}
+.person-row {
+  border: 0;
+  background: transparent;
+  padding: 6px 0;
+  min-height: 40px;
+  width: 100%;
+  color: var(--ink);
+  gap: 10px;
+}
+.ledger-row {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+.ledger-row .title {
+  font-size: 17px;
+  font-weight: 700;
+}
+.ledger-row .sub {
+  font-size: 14px;
+  color: var(--muted);
+}
+.ledger-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 86px;
+  gap: 8px;
+  font-size: 15px;
+}
+
+/* ---------- Insights ---------- */
+.bar-row {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--ink);
+}
+.week-bars {
+  padding: 16px 12px 12px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}

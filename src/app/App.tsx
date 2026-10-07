@@ -14,7 +14,9 @@ import { StockScreen } from '../features/stock/StockScreen';
 import { RecipesScreen } from '../features/recipes/RecipesScreen';
 import { RecipeDetail } from '../features/recipes/RecipeDetail';
 import { ShoppingScreen } from '../features/shopping/ShoppingScreen';
-import { Placeholder } from '../features/Placeholder';
+import { SettingsRoutes } from '../features/settings/SettingsRoutes';
+import { BudgetScreen } from '../features/budget/BudgetScreen';
+import { InsightsScreen } from '../features/insights/InsightsScreen';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -47,10 +49,10 @@ function Routed() {
         <Route path="/recipes" element={<RecipesScreen />} />
         <Route path="/recipes/:id" element={<RecipeDetail />} />
         <Route path="/shopping" element={<ShoppingScreen />} />
-        <Route path="/budget/*" element={<Placeholder title="Budget" />} />
-        <Route path="/insights" element={<Placeholder title="Insights" />} />
+        <Route path="/budget" element={<BudgetScreen />} />
+        <Route path="/insights" element={<InsightsScreen />} />
       </Route>
-      <Route path="/settings/*" element={<Placeholder title="Settings" />} />
+      <Route path="/settings/*" element={<SettingsRoutes />} />
       <Route path="*" element={<Navigate to="/stock" replace />} />
     </Routes>
   );

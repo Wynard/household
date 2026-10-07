@@ -86,3 +86,11 @@ export const dayLabel = (date: string) =>
   `${Number(date.slice(8, 10))} ${MONTHS_SHORT[Number(date.slice(5, 7)) - 1]}`;
 /** "2026-10-03" -> "3 Oct 2026" */
 export const dateLabel = (date: string) => `${dayLabel(date)} ${date.slice(0, 4)}`;
+
+/** "12,99 lei/kg", "6,99 lei/l", "4,90 lei each" — per kg / l / piece, whatever unit was bought. */
+export function unitPriceLabel(price: number, quantity: number, unit: Unit): string {
+  if (!(quantity > 0)) return '';
+  if (unit === 'pcs') return `${money(price / quantity)} each`;
+  const perBase = unit === 'g' || unit === 'ml' ? price / quantity : price / (quantity * 1000);
+  return `${money(perBase * 1000)}/${unit === 'g' || unit === 'kg' ? 'kg' : 'l'}`;
+}
