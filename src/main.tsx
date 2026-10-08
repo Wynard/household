@@ -1,8 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@fontsource/atkinson-hyperlegible/400.css';
-import '@fontsource/atkinson-hyperlegible/700.css';
-import '@fontsource-variable/bricolage-grotesque/wght.css';
+// Bon fonts, self-hosted; latin + latin-ext only (Romanian ă â î ș ț)
+import '@fontsource-variable/lexend/wght.css';
+import '@fontsource/ibm-plex-sans-condensed/latin-700.css';
+import '@fontsource/ibm-plex-sans-condensed/latin-ext-700.css';
+import '@fontsource/ibm-plex-mono/latin-500.css';
+import '@fontsource/ibm-plex-mono/latin-ext-500.css';
+import '@fontsource/ibm-plex-mono/latin-600.css';
+import '@fontsource/ibm-plex-mono/latin-ext-600.css';
 import './styles/tokens.css';
 import './styles/base.css';
 import { config } from './config';

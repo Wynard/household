@@ -105,7 +105,7 @@ export function NameEditor({
   return (
     <Sheet onClose={onClose} title={title} z={47} labelledBy="ne-title">
       {hint && (
-        <p className="muted" style={{ margin: 0, fontSize: 15 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-secondary)' }}>
           {hint}
         </p>
       )}

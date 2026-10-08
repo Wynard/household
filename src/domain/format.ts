@@ -10,7 +10,7 @@ const MINUS = '−';
 export function money(n: number, opts: { sign?: boolean } = {}): string {
   const neg = n < -0.004;
   const [int, dec] = Math.abs(n).toFixed(2).split('.');
-  const sep = MONEY_STYLE === 'ro' ? NBSP : ',';
+  const sep = MONEY_STYLE === 'ro' ? '.' : ',';
   const point = MONEY_STYLE === 'ro' ? ',' : '.';
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, sep);
   const sign = neg ? MINUS : opts.sign && n > 0.004 ? '+' : '';

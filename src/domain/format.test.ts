@@ -3,7 +3,7 @@ import { money, parseDecimal, qty, unitPriceLabel } from './format';
 
 describe('format', () => {
   it('formats money the Romanian way', () => {
-    expect(money(1500)).toBe('1 500,00 lei');
+    expect(money(1500)).toBe('1.500,00 lei'); // DESIGN.md 7: '.' for thousands
     expect(money(-12.5)).toBe('−12,50 lei');
     expect(money(3, { sign: true })).toBe('+3,00 lei');
   });

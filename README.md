@@ -61,4 +61,4 @@ See [SECURITY.md](SECURITY.md) for the security and privacy rules the app follow
 
 ## Licences
 
-Fonts: Bricolage Grotesque and Atkinson Hyperlegible, both under the SIL Open Font License (`public/licenses`).
+Fonts: Lexend, IBM Plex Sans Condensed and IBM Plex Mono, self-hosted, all under the SIL Open Font License (`public/licenses`). The look ("Bon": paper, ink, dashed tear lines, a highlighter for what matters) lives in `src/styles/tokens.css`; a test fails if a raw color, font or font size appears anywhere else.

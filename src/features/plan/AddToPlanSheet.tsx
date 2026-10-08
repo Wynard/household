@@ -30,7 +30,7 @@ export function AddToPlanSheet({
   return (
     <Sheet onClose={onClose} title={`Plan ${recipe.title}`} labelledBy="atp-title">
       <div className="stack-sm">
-        <span className="bold" style={{ fontSize: 15 }}>
+        <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
           Day
         </span>
         <div className="wrap" style={{ gap: 6 }}>

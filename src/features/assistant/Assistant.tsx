@@ -488,7 +488,7 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
               <span className="chat-avatar" aria-hidden>
                 <IconChat size={20} />
               </span>
-              <span className="display bold" style={{ fontSize: 22 }}>
+              <span className="display bold" style={{ fontSize: 'var(--fs-header)' }}>
                 Assistant
               </span>
             </span>
@@ -641,7 +641,7 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
             </div>
           )}
           {speech.listening && (
-            <div className="row bold small" style={{ color: 'var(--red)' }}>
+            <div className="row bold small" style={{ color: 'var(--danger-text)' }}>
               <span className="pulse-dot" />
               Listening. Tap the microphone when you're done.
             </div>
@@ -784,7 +784,7 @@ function CardView({
   const pending = card.status === 'pending';
   return (
     <div className={`action-card${pending ? ' pending' : ''}${card.danger ? ' danger' : ''}`}>
-      <span className="bold" style={{ fontSize: 17 }}>
+      <span className="bold" style={{ fontSize: 'var(--fs-label)' }}>
         {card.title}
       </span>
       <div className="stack" style={{ gap: 4 }}>
@@ -795,7 +795,7 @@ function CardView({
         ))}
       </div>
       {card.refreshed && pending && (
-        <span className="small bold" style={{ color: 'var(--saffron-ink)' }}>
+        <span className="small bold" style={{ color: 'var(--on-highlight)' }}>
           Updated: the data changed since I first prepared this.
         </span>
       )}
@@ -809,7 +809,7 @@ function CardView({
               data-armed={card.armed}
               disabled={!!card.blocked}
               onClick={onApply}
-              style={{ height: 44, fontSize: 15 }}
+              style={{ height: 44, fontSize: 'var(--fs-secondary)' }}
             >
               {card.armed ? 'Tap again to apply' : 'Apply'}
             </button>
@@ -818,7 +818,7 @@ function CardView({
                 type="button"
                 className="btn btn-outline btn-md"
                 onClick={onEdit}
-                style={{ height: 44, fontSize: 15 }}
+                style={{ height: 44, fontSize: 'var(--fs-secondary)' }}
               >
                 Edit
               </button>
@@ -827,7 +827,7 @@ function CardView({
               type="button"
               className="btn btn-ghost btn-md"
               onClick={onCancel}
-              style={{ height: 44, fontSize: 15, color: 'var(--muted)' }}
+              style={{ height: 44, fontSize: 'var(--fs-secondary)', color: 'var(--ink-muted)' }}
             >
               Cancel
             </button>
@@ -837,7 +837,7 @@ function CardView({
         <div className="row-between">
           <span
             className="small bold"
-            style={{ color: card.status === 'applied' ? 'var(--cobalt)' : 'var(--muted)' }}
+            style={{ color: card.status === 'applied' ? 'var(--primary)' : 'var(--ink-muted)' }}
           >
             {card.status === 'applied'
               ? 'Applied. Marked “via Assistant” in your history.'

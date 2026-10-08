@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useRun, useSnapshot } from '../../app/data';
 import { useAssistantUi, useScreenContext } from '../../app/assistantUi';
-import { Chip, EmptyState, Loading, PageHeader, Seg } from '../../ui/controls';
+import { Chip, EmptyState, Loading, PageHeader, Seg, SearchField } from '../../ui/controls';
 import { IconLink, IconPen, IconStar } from '../../ui/icons';
 import { availability, badgeLabel, totalMinutes, type Availability } from '../../domain/recipes';
 import { normalise } from '../../domain/categorise';
@@ -17,7 +17,7 @@ export function badgeClass(a: Availability) {
   return a.badge === 'ready'
     ? 'badge tag-cobalt'
     : a.badge === 'missing'
-      ? 'badge tag-saffron'
+      ? 'badge tag-red'
       : 'badge tag-grey';
 }
 
@@ -38,7 +38,7 @@ export function StarButton({ recipe, size = 24 }: { recipe: Recipe; size?: numbe
       aria-label={
         recipe.favourite ? `Remove ${recipe.title} from favourites` : `Add ${recipe.title} to favourites`
       }
-      style={{ color: recipe.favourite ? 'var(--saffron-deep)' : 'var(--muted)' }}
+      style={{ color: recipe.favourite ? 'var(--ink)' : 'var(--ink-muted)' }}
       onClick={() =>
         void run(
           'toggleFavourite',
@@ -99,8 +99,8 @@ export function RecipesScreen() {
       <div className="grid-2" style={{ margin: '14px 0 12px' }}>
         <button
           type="button"
-          className="btn btn-primary"
-          style={{ fontSize: 15, padding: '0 10px' }}
+          className="btn btn-primary btn-block"
+          style={{ padding: '0 var(--space-2)' }}
           onClick={() => assistant.open({ prompt: IMPORT_PROMPT })}
         >
           <IconLink />
@@ -108,8 +108,8 @@ export function RecipesScreen() {
         </button>
         <button
           type="button"
-          className="btn btn-outline"
-          style={{ fontSize: 15, padding: '0 10px' }}
+          className="btn btn-outline btn-block"
+          style={{ padding: '0 var(--space-2)' }}
           onClick={() => setWriting(true)}
         >
           <IconPen />
@@ -132,9 +132,7 @@ export function RecipesScreen() {
         <PlanView />
       ) : (
         <>
-          <input
-            type="search"
-            className="input search"
+          <SearchField
             aria-label="Search recipes"
             placeholder="Search recipes or ingredients"
             value={query}

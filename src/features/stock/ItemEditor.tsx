@@ -160,7 +160,7 @@ export function ItemEditor({
     }
   };
 
-  const catBg = category ? 'var(--cobalt-soft)' : d.name.trim() ? 'var(--saffron-soft)' : 'var(--surface-2)';
+  const catBg = category ? 'var(--surface-2)' : d.name.trim() ? 'var(--highlight)' : 'var(--surface-2)';
 
   return (
     <>
@@ -206,7 +206,7 @@ export function ItemEditor({
                 'Category'
               )}
             </span>
-            <span className="bold" style={{ color: category ? 'var(--cobalt-ink)' : 'var(--ink)' }}>
+            <span className="bold" style={{ color: category ? 'var(--ink)' : 'var(--ink)' }}>
               {category
                 ? catLabel(category, subcategory ?? undefined)
                 : d.name.trim()
@@ -220,7 +220,7 @@ export function ItemEditor({
         </div>
 
         <div className="stack-sm">
-          <span className="bold" style={{ fontSize: 15 }}>
+          <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
             Where it's kept
           </span>
           <div className="wrap" role="group" aria-label="Where it's kept">
@@ -252,7 +252,7 @@ export function ItemEditor({
         {d.active && (
           <>
             <div className="stack-sm">
-              <span className="bold" style={{ fontSize: 15 }}>
+              <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
                 Tracking
               </span>
               <Seg
@@ -271,7 +271,7 @@ export function ItemEditor({
 
             {!amount && (
               <div className="stack-sm">
-                <span className="bold" style={{ fontSize: 15 }}>
+                <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
                   In the house now
                 </span>
                 <Seg
@@ -290,7 +290,7 @@ export function ItemEditor({
             {amount && (
               <>
                 <div className="stack-sm">
-                  <span className="bold" style={{ fontSize: 15 }}>
+                  <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
                     Unit
                   </span>
                   <div className="unit-grid" role="group" aria-label="Unit">
@@ -357,7 +357,7 @@ export function ItemEditor({
         />
         {d.showInStock && d.active && (
           <div className="stack-sm">
-            <span className="bold" style={{ fontSize: 15 }}>
+            <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
               Add to the shopping list when
             </span>
             <Seg
@@ -450,7 +450,7 @@ function MergeSheet({
   }, [candidates, keep]);
   return (
     <Sheet onClose={onClose} z={45} title={`Merge into ${keep.name}`} labelledBy="merge-title">
-      <p className="muted" style={{ margin: 0, fontSize: 15 }}>
+      <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-secondary)' }}>
         Pick the duplicates. Their amounts are added to {keep.name}, their names become spellings it
         recognises on receipts, and recipes and history point to {keep.name}.
       </p>

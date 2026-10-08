@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useRun, useSnapshot } from '../../app/data';
 import { useScreenContext } from '../../app/assistantUi';
 import { prefs } from '../../app/prefs';
-import { Chip, EmptyState, Loading, PageHeader, Seg, Stepper } from '../../ui/controls';
+import { Chip, EmptyState, Loading, PageHeader, Seg, Stepper, SearchField } from '../../ui/controls';
 import { isSimple, stepFor, stockStatus, type StockStatus } from '../../domain/stock';
 import { normalise } from '../../domain/categorise';
 import { catLabel, qty } from '../../domain/format';
 import type { Item } from '../../domain/schemas';
 import { ItemEditor } from './ItemEditor';
+import { StatusControl } from '../../ui/StatusControl';
 import type { ActionPlan } from '../../domain/actions';
 
 type Filter = 'all' | 'low' | 'out';
@@ -16,14 +17,8 @@ type Group = 'place' | 'category';
 
 const BADGE: Record<Exclude<StockStatus, 'have'>, { label: string; cls: string }> = {
   out: { label: 'Out', cls: 'tag tag-red' },
-  low: { label: 'Running low', cls: 'tag tag-saffron' },
+  low: { label: 'Low', cls: 'tag tag-saffron' },
 };
-
-const STATUS_OPTIONS: [StockStatus, string][] = [
-  ['out', 'Out'],
-  ['low', 'Low'],
-  ['have', 'Have'],
-];
 
 /** Toast text after a stock change: only speak up when the shopping list changed. */
 function stockToast(plan: ActionPlan): string {
@@ -123,11 +118,9 @@ export function StockScreen() {
       <p className="summary">
         {shown.length} items, {counts.low} running low, {counts.out} out
       </p>
-      <input
-        type="search"
-        className="input search"
+      <SearchField
         aria-label="Search stock"
-        placeholder="Search stock"
+        placeholder={`Search ${shown.length} items`}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -160,7 +153,6 @@ export function StockScreen() {
       {groups.map((g) => {
         const key = `${group}:${g.name}`;
         const open = narrowed || !collapsed.includes(key);
-        const flagged = g.items.filter((i) => stockStatus(i) !== 'have').length;
         return (
           <section key={key} aria-label={g.name}>
             <h2 className="stock-section">
@@ -174,10 +166,6 @@ export function StockScreen() {
                   {open ? '▾' : '▸'}
                 </span>
                 <span className="grow">{g.name}</span>
-                <span className="small muted">
-                  {g.items.length}
-                  {flagged ? `, ${flagged} low or out` : ''}
-                </span>
               </button>
             </h2>
             {open && (
@@ -208,7 +196,7 @@ export function StockScreen() {
             Nothing in stock yet. Start from your own list, or tap Add item.
             <button
               type="button"
-              className="btn btn-primary btn-block"
+              className="btn btn-outline btn-block"
               style={{ marginTop: 14 }}
               onClick={() => nav('/settings/items/import')}
             >
@@ -216,7 +204,20 @@ export function StockScreen() {
             </button>
           </EmptyState>
         ) : (
-          <EmptyState>Nothing matches. Clear the search or pick another filter.</EmptyState>
+          <EmptyState>
+            Nothing matches.
+            <button
+              type="button"
+              className="btn btn-outline btn-block"
+              style={{ marginTop: 'var(--space-4)' }}
+              onClick={() => {
+                setQuery('');
+                setFilter('all');
+              }}
+            >
+              Clear the search
+            </button>
+          </EmptyState>
         ))}
 
       {editing !== undefined && <ItemEditor itemId={editing} onClose={() => setEditing(undefined)} />}
@@ -253,32 +254,23 @@ function StockRow({
     onPointerCancel: () => clearTimeout(press.current),
   };
   return (
-    <div className={`stock-row${st === 'have' ? '' : ` is-${st}`}`} {...longPress}>
+    <div
+      className={`stock-row${st === 'have' ? '' : ` is-${st}`}${item.active ? '' : ' is-inactive'}`}
+      {...longPress}
+    >
       <div className="grow">
         <button type="button" className="stock-name" aria-label={`Edit ${item.name}`} onClick={onEdit}>
           {item.name}
         </button>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
           {!item.active && <span className="tag tag-grey">Not watched</span>}
-          {st !== 'have' && <span className={BADGE[st].cls}>{BADGE[st].label}</span>}
+          {/* simple items show their status in the control; amount items get the badge */}
+          {!simple && st !== 'have' && <span className={BADGE[st].cls}>{BADGE[st].label}</span>}
           {sub && <span className="small muted">{sub}</span>}
         </div>
       </div>
       {!item.active ? null : simple ? (
-        <div className="status-seg" role="group" aria-label={`${item.name}: out, low or have`}>
-          {STATUS_OPTIONS.map(([v, l]) => (
-            <button
-              type="button"
-              key={v}
-              data-s={v}
-              aria-pressed={st === v}
-              aria-label={`${item.name}: ${l}`}
-              onClick={() => onStatus(v)}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
+        <StatusControl name={item.name} value={st} onChange={onStatus} />
       ) : (
         <Stepper
           value={qty(item.quantity, item.unit)}

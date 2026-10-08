@@ -58,7 +58,7 @@ export function CategoryPicker({
         <h2 className="h-sheet" id="cp-title">
           {node ? node.name : 'Pick a category'}
         </h2>
-        <p className="muted" style={{ margin: 0, fontSize: 15 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-secondary)' }}>
           {node
             ? 'Now pick a subcategory, or keep just the category.'
             : 'The app remembers this for next time.'}

@@ -23,10 +23,10 @@ export function OnboardingFrame({ children }: { children: ReactNode }) {
 function Brand({ sub }: { sub: string }) {
   return (
     <div className="stack" style={{ gap: 6, margin: '24px 0 28px' }}>
-      <h1 className="h1" style={{ fontSize: 40 }}>
+      <h1 className="h1" style={{ fontSize: 'var(--fs-title)' }}>
         Household
       </h1>
-      <p className="muted" style={{ margin: 0, fontSize: 17 }}>
+      <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-label)' }}>
         {sub}
       </p>
     </div>
@@ -100,7 +100,7 @@ export function ChooseScreen({
           style={{ textAlign: 'left', gap: 4, cursor: 'pointer' }}
           onClick={onCreate}
         >
-          <span className="display bold" style={{ fontSize: 22 }}>
+          <span className="display bold" style={{ fontSize: 'var(--fs-header)' }}>
             Create household
           </span>
           <span className="muted">I'm the first of us. Make the shared folder in my Google Drive.</span>
@@ -111,7 +111,7 @@ export function ChooseScreen({
           style={{ textAlign: 'left', gap: 4, cursor: 'pointer' }}
           onClick={onJoin}
         >
-          <span className="display bold" style={{ fontSize: 22 }}>
+          <span className="display bold" style={{ fontSize: 'var(--fs-header)' }}>
             Join household
           </span>
           <span className="muted">My partner already made it and shared the folder with me.</span>

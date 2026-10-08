@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { createHash } from 'node:crypto';
 
 // Content-Security-Policy, delivered as a <meta> tag because GitHub Pages
 // cannot send HTTP headers. Every allowed source is explained in SECURITY.md.
@@ -10,7 +11,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 // `npm run build && npm run preview` to test the app under the real policy.
 export const CSP = [
   "default-src 'self'",
-  "script-src 'self' https://accounts.google.com https://apis.google.com",
+  "script-src 'self' 'THEME_HASH' https://accounts.google.com https://apis.google.com",
   "style-src 'self' 'unsafe-inline' https://accounts.google.com",
   "connect-src 'self' https://www.googleapis.com https://content.googleapis.com https://generativelanguage.googleapis.com",
   'frame-src https://accounts.google.com https://docs.google.com https://drive.google.com',
@@ -29,7 +30,12 @@ function cspPlugin(): Plugin {
     name: 'household-csp',
     apply: 'build',
     transformIndexHtml(html) {
-      return html.replace('<!-- CSP -->', `<meta http-equiv="Content-Security-Policy" content="${CSP}" />`);
+      // the only inline script is the tiny theme boot; allow exactly it by its hash
+      const boot = html.match(/<script id="theme-boot">([\s\S]*?)<\/script>/)?.[1] ?? '';
+      if (!boot) throw new Error('index.html: the theme-boot script is missing');
+      const hash = `sha256-${createHash('sha256').update(boot).digest('base64')}`;
+      const csp = CSP.replace('THEME_HASH', hash);
+      return html.replace('<!-- CSP -->', `<meta http-equiv="Content-Security-Policy" content="${csp}" />`);
     },
   };
 }
@@ -74,8 +80,8 @@ export default defineConfig(({ mode }) => {
           scope: '.',
           display: 'standalone',
           orientation: 'portrait',
-          background_color: '#F4F6F8',
-          theme_color: '#1F4FA8',
+          background_color: '#ECECE8',
+          theme_color: '#ECECE8',
           icons: [
             { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
             { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
@@ -120,6 +126,8 @@ export default defineConfig(({ mode }) => {
       environment: 'node',
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.test.{ts,tsx}'],
+      // the design-token tests read tokens.css and base.css as text
+      css: { include: [/src[\\/]styles[\\/][^?]*\.css/] },
     },
   };
 });

@@ -1,136 +1,190 @@
-/* Design tokens — "enamel kitchenware". Copied from the approved prototype. */
+/*
+ * Design tokens: "Bon" (private DESIGN.md). The app looks like the receipts it
+ * reads: paper and ink, dashed tear lines, money in a receipt typeface, a
+ * highlighter for what matters and a red stamp for what's missing.
+ *
+ * Every color, font, size, radius and shadow lives here. Components use only
+ * these custom properties (scripts/check-tokens test enforces it).
+ *
+ * Themes: light (paper on a grey counter) and dark (paper and ink swapped).
+ * They follow the phone unless Settings › This phone › Appearance sets
+ * data-theme="light" | "dark" on <html>.
+ */
 :root {
-  /* Base */
-  --bg: #f4f6f8; /* cool white page */
-  --surface: #ffffff; /* cards, sheets */
-  --surface-2: #f4f6f8; /* inset rows, staple marks */
-  --track: #e4e8ee; /* segmented control, bar tracks */
-  --ink: #19202e; /* text, FAB */
-  --ink-2: #3e4757; /* softer text in cards */
-  --muted: #566070; /* secondary text */
-  --line: #dce1e8; /* borders */
-  --line-strong: #9aa6b8; /* dashed borders, chevrons */
-  --disabled: #7d8898; /* disabled primary buttons */
-  --off: #b8c1ce; /* switch track off, disabled arrows */
+  /* ---- color: light ---- */
+  --bg: #ecece8;
+  --surface: #ffffff;
+  --surface-2: #f6f6f3;
+  --ink: #111111;
+  --ink-muted: #3d3d3d;
+  --line: #bdbdb8;
+  --primary: #111111;
+  --on-primary: #ffffff;
+  --highlight: #ffe14d;
+  --on-highlight: #111111;
+  --danger: #c8211a;
+  --on-danger: #ffffff;
+  --danger-soft: #fbe3e1;
+  /* red text (errors, "over the target"): #d63b31 is only 3.7:1 on the dark surface, so dark text uses a lighter red */
+  --danger-text: #c8211a;
+  --tab-active-fg: #111111;
+  --tab-active-bg: #ffe14d;
+  --fab-bg: #111111;
+  --fab-fg: #ffe14d;
+  --nav-bg: #ffffff;
+  --overlay: rgba(17, 17, 17, 0.5);
+  --focus: #111111;
+  /* Undo on a toast: yellow on the dark toast; ink on the light toast of the dark theme (yellow would fail contrast there) */
+  --toast-action: #ffe14d;
+  /* the fixed dark outline on yellow fills (selected chips, consumption bars, person B) */
+  --outline-on-highlight: #111111;
+  /* receipt photo placeholder and the dark veil over photo buttons */
+  --photo-veil: rgba(17, 17, 17, 0.7);
+  --on-photo-veil: #ffffff;
 
-  /* Cobalt (primary) */
-  --cobalt: #1f4fa8;
-  --cobalt-hover: #163a7d;
-  --cobalt-soft: #e4ebf7;
-  --cobalt-ink: #163a7d; /* text on soft cobalt */
-  --cobalt-wash: #f2f6fc; /* current cooking step */
+  /* ---- shadows: only the assistant button and sheets ---- */
+  --shadow-fab: 0 6px 18px rgba(0, 0, 0, 0.25);
+  --shadow-sheet: 0 -8px 24px rgba(0, 0, 0, 0.18);
 
-  /* Saffron (running low, consumption charts) */
-  --saffron: #e8b030;
-  --saffron-soft: #fbf0d2;
-  --saffron-ink: #6b4a00;
-  --saffron-deep: #b07d00; /* favourite star outline */
+  /* ---- fonts (self-hosted, latin + latin-ext for ă â î ș ț) ---- */
+  --font-body: 'Lexend Variable', 'Lexend', system-ui, sans-serif;
+  --font-display: 'IBM Plex Sans Condensed', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  /* Red (out, destructive) */
-  --red: #b3261e;
-  --red-soft: #f8e1df;
+  /* ---- type scale (DESIGN.md 4) ---- */
+  --fs-title: 34px;
+  --lh-title: 1.1;
+  --fs-header: 22px;
+  --lh-header: 1.15;
+  --fs-sheet-title: 24px;
+  --fs-item: 19px;
+  --lh-item: 1.35;
+  --fs-body: 19px;
+  --lh-body: 1.45;
+  --fs-secondary: 16px;
+  --lh-secondary: 1.4;
+  --fs-label: 17px;
+  --fs-chip: 16px;
+  --fs-caps: 15px;
+  --ls-caps: 0.1em;
+  --fs-tab: 12px;
+  --fs-money-xl: 44px;
+  --fs-money-l: 26px;
+  --fs-cook-step: 26px;
+  --fs-cook-other: 21px;
+  --fs-timer: 30px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
 
-  --on-cobalt: #ffffff;
-  /* The enamel plate (pot balance) and rim keep the brand cobalt in both themes */
-  --plate: #1f4fa8;
-  --on-plate: #ffffff;
-  --fab: #19202e;
-  --on-fab: #ffffff;
-  --scrim: rgba(25, 32, 46, 0.45);
-  --shadow-fab: 0 6px 18px rgba(25, 32, 46, 0.35);
+  /* ---- spacing: 4 px scale ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --pad-screen: 18px;
+  --gap-cards: 12px;
+  --gap-header: 22px;
 
-  /* Type */
-  --font-display:
-    'Bricolage Grotesque Variable', 'Bricolage Grotesque', 'Atkinson Hyperlegible', system-ui, sans-serif;
-  --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* ---- radii ---- */
+  --radius-card: 4px;
+  --radius-button: 6px;
+  --radius-chip: 6px;
+  --radius-control: 5px;
+  --radius-sheet: 16px;
+  --radius-bubble: 12px;
+  --radius-bubble-tail: 4px;
+  --radius-round: 999px;
 
-  /* Shape */
-  --r-sm: 10px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 22px;
-  --rim: 6px; /* the cobalt rim at the top of every screen */
-  --tap: 44px; /* minimum touch target */
+  /* ---- lines ---- */
+  --border: 1px;
+  --border-strong: 2px;
+  --rule: 3px;
+
+  /* ---- sizes (minimums) ---- */
+  --tap: 44px;
+  --row-min: 68px;
+  --btn-h: 56px;
+  --btn-h-2: 52px;
+  --btn-h-sm: 44px;
+  --input-h: 52px;
+  --chip-h: 44px;
+  --control-h: 40px;
+  --step-btn: 40px;
+  --step-val-min: 54px;
+  --tab-min: 56px;
+  --tab-icon: 23px;
+  --fab-size: 58px;
+  --fab-icon: 26px;
+  --round-btn: 48px;
+  --gear: 44px;
+  --progress-h: 14px;
+  --bar-h: 10px;
+  --cook-progress-h: 6px;
+  --handle-w: 36px;
+  --handle-h: 4px;
+  --tear: 12px;
+  --tear-teeth: 16px;
   --page-max: 560px;
 
-  color-scheme: light;
+  /* ---- motion ---- */
+  --dur-fast: 150ms;
+  --dur-sheet: 220ms;
+
+  color-scheme: light dark;
 }
 
-/* Dark: follows the phone unless Settings › This phone › Appearance says Light */
+/* Dark: follows the phone unless Appearance says Light */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #11151d;
-    --surface: #1a202b;
-    --surface-2: #222937;
-    --track: #2a3241;
-    --ink: #eef1f6;
-    --ink-2: #c9d0dc;
-    --muted: #a0aaba;
-    --line: #2f3847;
-    --line-strong: #5a6578;
-    --disabled: #4a5466;
-    --off: #4a5466;
-
-    --cobalt: #6f9bff;
-    --cobalt-hover: #94b5ff;
-    --cobalt-soft: #1f2d4a;
-    --cobalt-ink: #b9cdff;
-    --cobalt-wash: #18233a;
-
-    --saffron: #e8b030;
-    --saffron-soft: #3a2f14;
-    --saffron-ink: #f3d58a;
-    --saffron-deep: #e8b030;
-
-    --red: #ff8a80;
-    --red-soft: #3d1f1d;
-
-    --on-cobalt: #0b1220;
-    --plate: #2557b8;
-    --on-plate: #ffffff;
-    --fab: #eef1f6;
-    --on-fab: #11151d;
-    --scrim: rgba(0, 0, 0, 0.6);
-    --shadow-fab: 0 6px 18px rgba(0, 0, 0, 0.5);
-    color-scheme: dark;
+    --bg: #121212;
+    --surface: #1c1c1c;
+    --surface-2: #242424;
+    --ink: #f2f2ee;
+    --ink-muted: #b5b5ae;
+    --line: #3a3a36;
+    --primary: #f2f2ee;
+    --on-primary: #111111;
+    --danger: #d63b31;
+    --danger-soft: #3a1e1c;
+    --danger-text: #f06a60;
+    --tab-active-fg: #ffe14d;
+    --tab-active-bg: #3a3520;
+    --fab-bg: #ffe14d;
+    --fab-fg: #111111;
+    --nav-bg: #181818;
+    --overlay: rgba(0, 0, 0, 0.6);
+    --focus: #ffe14d;
+    --toast-action: #111111;
   }
 }
 
-/* Settings › This phone › Appearance: Dark wins over the phone setting (Light is the :not() above) */
 :root[data-theme='dark'] {
-  --bg: #11151d;
-  --surface: #1a202b;
-  --surface-2: #222937;
-  --track: #2a3241;
-  --ink: #eef1f6;
-  --ink-2: #c9d0dc;
-  --muted: #a0aaba;
-  --line: #2f3847;
-  --line-strong: #5a6578;
-  --disabled: #4a5466;
-  --off: #4a5466;
-
-  --cobalt: #6f9bff;
-  --cobalt-hover: #94b5ff;
-  --cobalt-soft: #1f2d4a;
-  --cobalt-ink: #b9cdff;
-  --cobalt-wash: #18233a;
-
-  --saffron: #e8b030;
-  --saffron-soft: #3a2f14;
-  --saffron-ink: #f3d58a;
-  --saffron-deep: #e8b030;
-
-  --red: #ff8a80;
-  --red-soft: #3d1f1d;
-
-  --on-cobalt: #0b1220;
-  --plate: #2557b8;
-  --on-plate: #ffffff;
-  --fab: #eef1f6;
-  --on-fab: #11151d;
-  --scrim: rgba(0, 0, 0, 0.6);
-  --shadow-fab: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --bg: #121212;
+  --surface: #1c1c1c;
+  --surface-2: #242424;
+  --ink: #f2f2ee;
+  --ink-muted: #b5b5ae;
+  --line: #3a3a36;
+  --primary: #f2f2ee;
+  --on-primary: #111111;
+  --danger: #d63b31;
+  --danger-soft: #3a1e1c;
+  --danger-text: #f06a60;
+  --tab-active-fg: #ffe14d;
+  --tab-active-bg: #3a3520;
+  --fab-bg: #ffe14d;
+  --fab-fg: #111111;
+  --nav-bg: #181818;
+  --overlay: rgba(0, 0, 0, 0.6);
+  --focus: #ffe14d;
+  --toast-action: #111111;
   color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
 }

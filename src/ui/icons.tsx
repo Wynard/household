@@ -95,7 +95,7 @@ export const IconBang = ({ size = 15, ...r }: P) => (
   </svg>
 );
 export const IconStar = ({ size = 24, filled = false, ...r }: P & { filled?: boolean }) => (
-  <svg {...base(size, 1.8, r)} fill={filled ? 'var(--saffron)' : 'none'}>
+  <svg {...base(size, 1.8, r)} fill={filled ? 'var(--highlight)' : 'none'}>
     <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
   </svg>
 );
@@ -154,5 +154,11 @@ export const IconWarn = ({ size = 20, ...r }: P) => (
   <svg {...base(size, 2.2, r)}>
     <path d="M12 3l9.5 17h-19z" />
     <path d="M12 10v4M12 17v.5" />
+  </svg>
+);
+export const IconSearch = ({ size = 20, ...r }: P) => (
+  <svg {...base(size, 2, r)}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="M16 16l4.5 4.5" />
   </svg>
 );

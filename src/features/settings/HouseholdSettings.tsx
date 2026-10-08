@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRun, useSnapshot } from '../../app/data';
 import { useSession } from '../../auth/session';
 import { DecimalInput, Field, Loading } from '../../ui/controls';
+import { personDot } from '../../ui/person';
 import { Sheet } from '../../ui/Sheet';
 import { money, num, parseDecimal } from '../../domain/format';
 import { potBalance } from '../../domain/budget';
@@ -9,8 +10,6 @@ import type { Member } from '../../domain/schemas';
 import { SettingsPage } from './common';
 import { prefs } from '../../app/prefs';
 import { driveFolderLink } from '../../storage/drive';
-
-const COLORS = ['#1F4FA8', '#E8B030', '#2E7D5B', '#B3261E', '#7A4FB0', '#566070'];
 
 export function HouseholdSettings() {
   const { snap } = useSnapshot();
@@ -60,12 +59,12 @@ export function HouseholdSettings() {
       <div className="list">
         {h.members.map((m) => (
           <button key={m.email} type="button" className="list-row" onClick={() => setEditing(m)}>
-            <span className="dot" style={{ width: 14, height: 14, borderRadius: 7, background: m.color }} />
+            <span className={personDot(h.members, m.email)} />
             <span className="grow stack" style={{ gap: 0 }}>
               <span className="title">{m.name}</span>
               <span className="sub">{m.email}</span>
             </span>
-            <span className="small" style={{ color: 'var(--cobalt)', fontWeight: 700 }}>
+            <span className="small" style={{ color: 'var(--primary)', fontWeight: 700 }}>
               Edit
             </span>
           </button>
@@ -82,44 +81,17 @@ export function HouseholdSettings() {
 function MemberSheet({ member, onClose }: { member: Member; onClose: () => void }) {
   const { run } = useRun();
   const [name, setName] = useState(member.name);
-  const [color, setColor] = useState(member.color);
   return (
     <Sheet onClose={onClose} title={`Edit ${member.name}`} labelledBy="mem-title">
       <Field label="Name">
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <div className="stack-sm">
-        <span className="bold" style={{ fontSize: 15 }}>
-          Colour in charts and history
-        </span>
-        <div className="wrap" role="radiogroup" aria-label="Colour">
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              role="radio"
-              aria-checked={color === c}
-              aria-label={c}
-              onClick={() => setColor(c)}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                background: c,
-                border: color === c ? '3px solid var(--ink)' : '3px solid transparent',
-                boxShadow: 'inset 0 0 0 2px var(--surface)',
-              }}
-            />
-          ))}
-        </div>
-      </div>
       <button
         type="button"
         className="btn btn-primary btn-block"
         disabled={!name.trim()}
         onClick={async () => {
-          if (await run('updateMember', { ...member, name: name.trim(), color }, { toast: 'Saved' }))
-            onClose();
+          if (await run('updateMember', { ...member, name: name.trim() }, { toast: 'Saved' })) onClose();
         }}
       >
         Save

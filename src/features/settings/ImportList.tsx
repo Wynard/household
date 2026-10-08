@@ -88,7 +88,12 @@ export function ImportList() {
           className="input"
           aria-label="Your list"
           rows={10}
-          style={{ marginTop: 12, width: '100%', fontFamily: 'var(--font-mono)', fontSize: 14 }}
+          style={{
+            marginTop: 12,
+            width: '100%',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--fs-secondary)',
+          }}
           placeholder={EXAMPLE}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -141,7 +146,7 @@ export function ImportList() {
             <select
               className="input input-sm"
               aria-label={`Place for ${s.category}`}
-              style={{ width: 172, flexShrink: 0, fontSize: 15 }}
+              style={{ width: 172, flexShrink: 0, fontSize: 'var(--fs-secondary)' }}
               value={s.place}
               onChange={(e) => setPlaces((p) => ({ ...p, [s.category]: e.target.value }))}
             >

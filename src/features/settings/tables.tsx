@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRun, useSnapshot } from '../../app/data';
-import { Chip, Loading } from '../../ui/controls';
+import { Chip, Loading, SearchField } from '../../ui/controls';
 import { IconGrip } from '../../ui/icons';
 import { useToast } from '../../ui/Toast';
 import { normalise } from '../../domain/categorise';
@@ -40,9 +40,7 @@ export function ItemsTable() {
       hint="Every item you keep at home, food or not. Hidden items don't show in Stock but still work for the budget, recipes and receipts."
       add={{ label: 'New item', onClick: () => setEditing(null) }}
     >
-      <input
-        type="search"
-        className="input search"
+      <SearchField
         aria-label="Search items"
         placeholder="Search all items"
         value={q}
@@ -187,7 +185,7 @@ export function CategoriesTable() {
           <div key={c.name} className="card stack" style={{ padding: '12px 12px 14px 16px' }}>
             <div className="row-between">
               <span className="stack" style={{ gap: 0 }}>
-                <span className="bold" style={{ fontSize: 17 }}>
+                <span className="bold" style={{ fontSize: 'var(--fs-label)' }}>
                   {c.name}
                 </span>
                 <span className="small muted">
@@ -272,9 +270,9 @@ export function PlacesTable() {
               className="row"
               style={{
                 gap: 0,
-                background: drag?.name === p ? 'var(--cobalt-soft)' : undefined,
+                background: drag?.name === p ? 'var(--surface-2)' : undefined,
                 boxShadow:
-                  drag && drag.over === i && drag.name !== p ? 'inset 0 3px 0 var(--cobalt)' : undefined,
+                  drag && drag.over === i && drag.name !== p ? 'inset 0 3px 0 var(--primary)' : undefined,
               }}
             >
               <span

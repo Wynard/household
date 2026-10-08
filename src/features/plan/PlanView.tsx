@@ -15,7 +15,7 @@ import { FinishCooking } from '../recipes/CookingMode';
 
 const TONE: Record<string, string> = {
   ready: 'tag tag-cobalt',
-  missing: 'tag tag-saffron',
+  missing: 'tag tag-red',
   muted: 'tag tag-grey',
   cooked: 'tag tag-grey',
 };
@@ -86,14 +86,14 @@ export function PlanView() {
         <button
           type="button"
           className="icon-btn"
-          style={{ color: 'var(--cobalt)' }}
+          style={{ color: 'var(--primary)' }}
           aria-label="Previous week"
           onClick={() => setMon(shiftDays(mon, -7))}
         >
           <IconBack />
         </button>
         <div className="stack" style={{ gap: 0, alignItems: 'center' }}>
-          <span className="display bold" style={{ fontSize: 18 }} aria-live="polite">
+          <span className="display bold" style={{ fontSize: 'var(--fs-label)' }} aria-live="polite">
             {weekLabel(mon)}
           </span>
           {mon !== weekStart(today) && (
@@ -110,7 +110,7 @@ export function PlanView() {
         <button
           type="button"
           className="icon-btn"
-          style={{ color: 'var(--cobalt)' }}
+          style={{ color: 'var(--primary)' }}
           aria-label="Next week"
           onClick={() => setMon(shiftDays(mon, 7))}
         >
@@ -119,9 +119,9 @@ export function PlanView() {
       </div>
       {open.size > 0 ? (
         <div className="callout callout-saffron stack" style={{ gap: 12 }}>
-          <div className="bold" style={{ fontSize: 17 }}>
+          <div className="bold" style={{ fontSize: 'var(--fs-label)' }}>
             This week's meals need {plural(open.size, 'more thing')} than you have.
-            <div style={{ fontWeight: 400, fontSize: 15, marginTop: 2 }}>
+            <div style={{ fontWeight: 400, fontSize: 'var(--fs-secondary)', marginTop: 2 }}>
               Earlier meals get first pick of the stock.
             </div>
           </div>
@@ -140,7 +140,7 @@ export function PlanView() {
         {days.map((d) => (
           <div key={d} className="plan-day" style={{ opacity: d < today ? 0.7 : 1 }}>
             <div style={{ paddingTop: 6 }}>
-              <div className="display bold" style={{ fontSize: 18 }}>
+              <div className="display bold" style={{ fontSize: 'var(--fs-label)' }}>
                 {format(parseISO(d), 'EEE')}
               </div>
               <div className="small muted">{d === today ? 'Today' : format(parseISO(d), 'd MMM')}</div>
@@ -170,7 +170,7 @@ export function PlanView() {
                           ? `, for ${entry.servings}`
                           : ''}
                       </span>
-                      <span className="bold" style={{ color: entry ? 'var(--ink)' : 'var(--muted)' }}>
+                      <span className="bold" style={{ color: entry ? 'var(--ink)' : 'var(--ink-muted)' }}>
                         {entry ? (m?.recipe?.title ?? 'Recipe deleted') : 'Add a meal'}
                       </span>
                     </span>
@@ -249,9 +249,9 @@ function SlotSheet({
       {entry && current && (
         <div
           className="card card-pad stack"
-          style={{ gap: 10, background: 'var(--cobalt-soft)', borderColor: 'var(--cobalt)' }}
+          style={{ gap: 10, background: 'var(--surface-2)', borderColor: 'var(--primary)' }}
         >
-          <span className="bold" style={{ fontSize: 17 }}>
+          <span className="bold" style={{ fontSize: 'var(--fs-label)' }}>
             {current.title}
           </span>
           {!entry.cooked && (
@@ -313,12 +313,12 @@ function SlotSheet({
             className="cat-opt row"
             style={{
               gap: 8,
-              fontSize: 16,
-              borderColor: r.id === entry?.recipeId ? 'var(--cobalt)' : undefined,
+              fontSize: 'var(--fs-secondary)',
+              borderColor: r.id === entry?.recipeId ? 'var(--primary)' : undefined,
             }}
             onClick={() => void choose(r.id, r.id === entry?.recipeId ? servings || r.servings : r.servings)}
           >
-            {r.favourite && <IconStar size={18} filled style={{ color: 'var(--saffron-deep)' }} />}
+            {r.favourite && <IconStar size={18} filled style={{ color: 'var(--ink)' }} />}
             <span className="grow">{r.title}</span>
             <span className="small muted" style={{ fontWeight: 400 }}>
               {totalMinutes(r) ? `${totalMinutes(r)} min, ` : ''}serves {r.servings}
@@ -331,7 +331,7 @@ function SlotSheet({
         <button
           type="button"
           className="btn btn-ghost btn-md"
-          style={{ color: 'var(--red)' }}
+          style={{ color: 'var(--danger-text)' }}
           onClick={async () => {
             if (await run('removePlanEntry', { id: entry.id }, { toast: 'Removed from the plan' })) onClose();
           }}

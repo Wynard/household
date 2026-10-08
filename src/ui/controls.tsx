@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type ReactNode, type InputHTMLAttributes } from 'react';
+import { IconReceipt, IconSearch } from './icons';
 import { useNavigate } from 'react-router-dom';
 import { IconBack, IconGear, IconMinus, IconNext, IconPlus } from './icons';
 
@@ -90,7 +91,7 @@ export function Choice<T extends string>({
 }) {
   return (
     <div className="stack-sm">
-      <span className="bold" style={{ fontSize: 15 }}>
+      <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
         {label}
       </span>
       <div className="grid-2" role="group" aria-label={label}>
@@ -247,24 +248,22 @@ export function MonthSwitcher({
   nextDisabled?: boolean;
 }) {
   return (
-    <div className="row-between" style={{ margin: '4px -8px 10px' }}>
+    <div className="row-between section-head" style={{ paddingBottom: 'var(--space-1)' }}>
       <button
         type="button"
         className="icon-btn"
-        style={{ color: prevDisabled ? 'var(--off)' : 'var(--cobalt)' }}
         aria-label="Previous month"
         onClick={onPrev}
         disabled={prevDisabled}
       >
         <IconBack />
       </button>
-      <h2 className="display bold" style={{ margin: 0, fontSize: 20 }} aria-live="polite">
+      <h2 className="display" style={{ margin: 0, font: 'inherit' }} aria-live="polite">
         {label}
       </h2>
       <button
         type="button"
         className="icon-btn"
-        style={{ color: nextDisabled ? 'var(--off)' : 'var(--cobalt)' }}
         aria-label="Next month"
         onClick={onNext}
         disabled={nextDisabled}
@@ -275,18 +274,38 @@ export function MonthSwitcher({
   );
 }
 
-export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="empty">{children}</p>;
+/** Empty: a line icon, one sentence, and the next action (passed as children) as a Secondary button. */
+export function EmptyState({ children, icon }: { children: ReactNode; icon?: ReactNode }) {
+  return (
+    <div className="empty-state">
+      {icon ?? <IconReceipt size={48} />}
+      <div>{children}</div>
+    </div>
+  );
+}
+
+/** Search box with the magnifier inside (Bon 6.7). */
+export function SearchField(props: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <span className="search-field">
+      <IconSearch />
+      <input type="search" {...props} className={`input search ${props.className ?? ''}`} />
+    </span>
+  );
 }
 
 export function useStableId(prefix: string) {
   return `${prefix}-${useId().replace(/:/g, '')}`;
 }
 
+/** Skeleton rows (they pulse gently, still under reduced motion), with the text for screen readers. */
 export function Loading({ text = 'Loading…' }: { text?: string }) {
   return (
-    <p className="empty" role="status">
-      {text}
-    </p>
+    <div role="status" style={{ marginTop: 'var(--space-6)' }}>
+      <span className="sr-only">{text}</span>
+      <span className="skeleton" aria-hidden />
+      <span className="skeleton" aria-hidden />
+      <span className="skeleton" aria-hidden />
+    </div>
   );
 }

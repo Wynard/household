@@ -117,7 +117,7 @@ export function ShoppingScreen() {
               className="title"
               style={
                 s.checked
-                  ? { color: 'var(--muted)', textDecoration: 'line-through', fontWeight: 400 }
+                  ? { color: 'var(--ink-muted)', textDecoration: 'line-through', fontWeight: 400 }
                   : undefined
               }
             >
@@ -237,7 +237,7 @@ function EditEntrySheet({ entry, onClose }: { entry: ShoppingItem; onClose: () =
           <DecimalInput placeholder="Any" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <div className="stack-sm">
-          <span className="bold" style={{ fontSize: 15 }}>
+          <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
             Unit
           </span>
           <div className="unit-grid" role="group" aria-label="Unit">

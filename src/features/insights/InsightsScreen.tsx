@@ -10,6 +10,9 @@ import { currentMonth, shiftMonth } from '../../domain/dates';
 import { money, monthLabel, monthName, plural, qty as fmtQty } from '../../domain/format';
 import { priceHistory, spendingInsights, usageInsights, type Bar, type Filters } from '../../domain/insights';
 import type { Snapshot } from '../../domain/actions';
+import { personKey } from '../../ui/person';
+
+type BarTone = '' | 'use' | 'over';
 
 type View = 'spend' | 'use';
 
@@ -74,7 +77,7 @@ export function InsightsScreen() {
 
   const members = snap.household.members;
   const nameOf = (e: string) => members.find((m) => m.email === e)?.name ?? e;
-  const colorOf = (e: string) => members.find((m) => m.email === e)?.color ?? 'var(--muted)';
+  const toneOf = (e: string): BarTone => (personKey(members, e) === 'b' ? 'use' : '');
   const firstYm = budgets
     .flatMap((b) => [...b.purchases, ...b.contributions])
     .reduce((m, x) => (x.date.slice(0, 7) < m ? x.date.slice(0, 7) : m), currentMonth());
@@ -125,7 +128,7 @@ export function InsightsScreen() {
         <button
           type="button"
           className="chip"
-          style={{ border: '2px solid var(--cobalt)', color: 'var(--cobalt)' }}
+          style={{ border: '2px solid var(--primary)', color: 'var(--primary)' }}
           onClick={() => setFilters(true)}
         >
           <IconFilter />
@@ -148,7 +151,7 @@ export function InsightsScreen() {
       {view === 'spend' ? (
         <>
           <div className="card card-pad stack" style={{ gap: 4, marginTop: 16 }}>
-            <span className="muted" style={{ fontSize: 15 }}>
+            <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
               Spent in {monthName(ym)}
               {f.person ? ` by ${nameOf(f.person)}` : ''}
             </span>
@@ -156,13 +159,9 @@ export function InsightsScreen() {
             <span
               className="bold"
               style={{
-                fontSize: 15,
-                color:
-                  sp.comparison.direction === 'more'
-                    ? 'var(--red)'
-                    : sp.comparison.direction === 'less'
-                      ? 'var(--cobalt)'
-                      : 'var(--muted)',
+                fontSize: 'var(--fs-secondary)',
+                // no color coding: the words say more or less (red is for missing things only)
+                color: 'var(--ink)',
               }}
             >
               {sp.comparison.direction === 'none'
@@ -187,9 +186,9 @@ export function InsightsScreen() {
               <h2 className="h2">Week by week</h2>
               <WeekBars weeks={sp.weeks} />
               <h2 className="h2">Who spent it</h2>
-              <BarList bars={sp.byPerson} label={nameOf} color={colorOf} />
+              <BarList bars={sp.byPerson} label={nameOf} tone={toneOf} />
               <h2 className="h2">Where</h2>
-              <BarList bars={sp.byStore} color={() => 'var(--muted)'} onPick={(s) => set({ store: s })} />
+              <BarList bars={sp.byStore} onPick={(s) => set({ store: s })} />
               <h2 className="h2">Top items</h2>
               <div className="list">
                 {sp.topItems.map((t) => (
@@ -200,7 +199,7 @@ export function InsightsScreen() {
                     onClick={() => setPriceOf({ itemId: t.itemId, name: t.name })}
                   >
                     <span className="grow stack" style={{ gap: 0 }}>
-                      <span className="title" style={{ fontSize: 16 }}>
+                      <span className="title" style={{ fontSize: 'var(--fs-secondary)' }}>
                         {t.name}
                       </span>
                       <span className="sub">
@@ -212,10 +211,10 @@ export function InsightsScreen() {
                 ))}
               </div>
               <div className="callout callout-cobalt stack" style={{ gap: 4, marginTop: 22 }}>
-                <span className="bold" style={{ fontSize: 17 }}>
+                <span className="bold" style={{ fontSize: 'var(--fs-label)' }}>
                   Money in and out
                 </span>
-                <span style={{ fontSize: 15 }}>
+                <span style={{ fontSize: 'var(--fs-secondary)' }}>
                   {f.category || f.store
                     ? `Put in ${money(sp.moneyIn)} this month. Spending above is only for your filters.`
                     : `Put in ${money(sp.moneyIn)}, spent ${money(sp.total)}. ${sp.moneyIn - sp.total >= 0 ? `${money(sp.moneyIn - sp.total)} stayed in the pot.` : `${money(sp.total - sp.moneyIn)} more than was put in.`}`}
@@ -280,11 +279,11 @@ function UsageView({
   return (
     <>
       <div className="card card-pad stack" style={{ gap: 4, marginTop: 16 }}>
-        <span className="muted" style={{ fontSize: 15 }}>
+        <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
           Groceries used, worth about
         </span>
         <span className="big-num">{money(us.totalValue)}</span>
-        <span className="muted" style={{ fontSize: 15 }}>
+        <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
           {plural(us.distinctItems, 'different item')} used, {plural(us.meals, 'meal')} cooked in the app
         </span>
       </div>
@@ -303,11 +302,8 @@ function UsageView({
                 </span>
                 <span className="bar-track">
                   <span
-                    className="bar-fill"
-                    style={{
-                      width: `${Math.max(2, Math.round((x.value / umax) * 100))}%`,
-                      background: 'var(--saffron)',
-                    }}
+                    className="bar-fill use"
+                    style={{ width: `${Math.max(2, Math.round((x.value / umax) * 100))}%` }}
                   />
                 </span>
               </div>
@@ -319,7 +315,7 @@ function UsageView({
           <p className="small muted" style={{ margin: '0 0 10px' }}>
             {drillHint}
           </p>
-          <BarList bars={us.byDrill} color={() => 'var(--saffron)'} onPick={onDrill} showPct />
+          <BarList bars={us.byDrill} tone={() => 'use'} onPick={onDrill} showPct />
         </>
       ) : (
         <p className="empty">
@@ -384,11 +380,8 @@ function UsageView({
                   </span>
                   <span className="bar-track" aria-hidden>
                     <span
-                      className="bar-fill"
-                      style={{
-                        width: `${Math.max(2, Math.round(share * 100))}%`,
-                        background: share < 0.5 ? 'var(--red)' : 'var(--saffron)',
-                      }}
+                      className="bar-fill use"
+                      style={{ width: `${Math.max(2, Math.round(share * 100))}%` }}
                     />
                   </span>
                 </div>
@@ -409,13 +402,14 @@ function BarList({
   bars,
   onPick,
   label = (k) => k,
-  color = () => 'var(--cobalt)',
+  tone = () => '',
   showPct,
 }: {
   bars: Bar[];
   onPick?: (key: string) => void;
   label?: (k: string) => string;
-  color?: (k: string) => string;
+  /** '' = spending (ink), 'use' = consumption / person B (yellow, outlined) */
+  tone?: (k: string) => BarTone;
   showPct?: boolean;
 }) {
   return (
@@ -432,8 +426,8 @@ function BarList({
             </span>
             <span className="bar-track">
               <span
-                className="bar-fill"
-                style={{ width: `${Math.max(2, Math.round(b.rel * 100))}%`, background: color(b.key) }}
+                className={`bar-fill ${tone(b.key)}`}
+                style={{ width: `${Math.max(2, Math.round(b.rel * 100))}%` }}
               />
             </span>
           </>
@@ -477,7 +471,7 @@ function WeekBars({ weeks }: { weeks: number[] }) {
                 display: 'block',
                 width: 28,
                 height: Math.max(4, Math.round((w / max) * 104)),
-                background: 'var(--cobalt)',
+                background: 'var(--primary)',
                 borderRadius: '6px 6px 2px 2px',
               }}
             />
@@ -510,15 +504,15 @@ function TrendLine({ points, unit = 'lei' }: { points: { label: string; value: n
         <path
           d={path}
           fill="none"
-          stroke="var(--cobalt)"
+          stroke="var(--primary)"
           strokeWidth={2.5}
           strokeLinejoin="round"
           strokeLinecap="round"
         />
         {points.map((p, i) => (
           <g key={i}>
-            <circle cx={x(i)} cy={y(p.value)} r={i === points.length - 1 ? 5 : 3.5} fill="var(--cobalt)" />
-            <text x={x(i)} y={H + 10} textAnchor="middle" fontSize="11" fill="var(--muted)">
+            <circle cx={x(i)} cy={y(p.value)} r={i === points.length - 1 ? 5 : 3.5} fill="var(--primary)" />
+            <text x={x(i)} y={H + 10} textAnchor="middle" fontSize="11" fill="var(--ink-muted)">
               {p.label}
             </text>
             {i === points.length - 1 || p.value === max ? (
@@ -574,7 +568,7 @@ function FilterSheet({
         </button>
       </div>
       <div className="stack-sm" style={{ gap: 8 }}>
-        <span className="bold" style={{ fontSize: 15 }}>
+        <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
           Person
         </span>
         <div className="wrap">
@@ -589,7 +583,7 @@ function FilterSheet({
         </div>
       </div>
       <div className="stack-sm" style={{ gap: 8 }}>
-        <span className="bold" style={{ fontSize: 15 }}>
+        <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
           Category
         </span>
         <div className="wrap">
@@ -609,7 +603,7 @@ function FilterSheet({
       </div>
       {cat && (
         <div className="stack-sm" style={{ gap: 8 }}>
-          <span className="bold" style={{ fontSize: 15 }}>
+          <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
             Subcategory in {cat.name}
           </span>
           <div className="wrap">
@@ -626,7 +620,7 @@ function FilterSheet({
       )}
       {view === 'spend' && (
         <div className="stack-sm" style={{ gap: 8 }}>
-          <span className="bold" style={{ fontSize: 15 }}>
+          <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
             Store
           </span>
           <div className="wrap">

@@ -110,10 +110,10 @@ export function RecipeDetail() {
           <StarButton recipe={recipe} />
         </div>
       </div>
-      <h1 className="h1" style={{ fontSize: 30, marginTop: 4 }}>
+      <h1 className="h1" style={{ fontSize: 'var(--fs-title)', marginTop: 4 }}>
         {recipe.title}
       </h1>
-      <p className="muted" style={{ margin: '6px 0 10px', fontSize: 15 }}>
+      <p className="muted" style={{ margin: '6px 0 10px', fontSize: 'var(--fs-secondary)' }}>
         {mins ? `${mins} min, serves ${recipe.servings} as written` : `Serves ${recipe.servings} as written`}
       </p>
       <div className="wrap" style={{ gap: 6, marginBottom: 16, alignItems: 'center' }}>
@@ -121,7 +121,7 @@ export function RecipeDetail() {
           <span
             key={c}
             className="tag tag-cobalt"
-            style={{ padding: '4px 10px', borderRadius: 8, fontSize: 14 }}
+            style={{ padding: '4px 10px', borderRadius: 8, fontSize: 'var(--fs-secondary)' }}
           >
             {c}
           </span>
@@ -131,10 +131,10 @@ export function RecipeDetail() {
           className="btn btn-sm"
           style={{
             height: 36,
-            border: '1px dashed var(--line-strong)',
+            border: '1px dashed var(--ink-muted)',
             background: 'transparent',
-            color: 'var(--cobalt)',
-            fontSize: 14,
+            color: 'var(--primary)',
+            fontSize: 'var(--fs-secondary)',
           }}
           onClick={() => setCats(true)}
         >
@@ -174,7 +174,7 @@ export function RecipeDetail() {
                 {mark === 'bad' && <IconBang />}
               </span>
               <div className="grow">
-                <div style={{ fontSize: 17 }}>
+                <div style={{ fontSize: 'var(--fs-label)' }}>
                   {amt && <>{amt} </>}
                   {r.ingredient.name}
                   {r.ingredient.optional && <span className="muted">, optional</span>}
@@ -202,7 +202,7 @@ export function RecipeDetail() {
         <button
           type="button"
           className="btn btn-primary btn-lg"
-          style={{ fontSize: 18 }}
+          style={{ fontSize: 'var(--fs-label)' }}
           onClick={() => setCooking(true)}
           disabled={!recipe.steps.length}
         >
@@ -247,7 +247,7 @@ export function RecipeCategoriesSheet({ recipe, onClose }: { recipe: Recipe; onC
     void run('setRecipeCategories', { recipeId: recipe.id, categories }, { toast: false });
   return (
     <Sheet onClose={onClose} title="Recipe categories" labelledBy="rc-title">
-      <p className="muted" style={{ margin: '-6px 0 0', fontSize: 15 }}>
+      <p className="muted" style={{ margin: '-6px 0 0', fontSize: 'var(--fs-secondary)' }}>
         Pick as many as fit.
       </p>
       {all.map((c) => {
@@ -259,9 +259,9 @@ export function RecipeCategoriesSheet({ recipe, onClose }: { recipe: Recipe; onC
             className="cat-opt row"
             style={{
               gap: 12,
-              borderColor: on ? 'var(--cobalt)' : undefined,
-              background: on ? 'var(--cobalt-soft)' : undefined,
-              fontSize: 17,
+              borderColor: on ? 'var(--primary)' : undefined,
+              background: on ? 'var(--surface-2)' : undefined,
+              fontSize: 'var(--fs-label)',
             }}
             aria-pressed={on}
             onClick={() => set(on ? recipe.categories.filter((x) => x !== c) : [...recipe.categories, c])}

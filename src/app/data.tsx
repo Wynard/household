@@ -154,7 +154,7 @@ export function useMe(): Member | undefined {
   const h = useFile('household').data?.data;
   return (
     h?.members.find((m) => m.email === email) ??
-    (email ? { email, name: email.split('@')[0], color: '#1F4FA8' } : undefined)
+    (email ? { email, name: email.split('@')[0], color: '' } : undefined)
   );
 }
 

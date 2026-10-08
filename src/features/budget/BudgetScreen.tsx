@@ -12,11 +12,13 @@ import {
   MonthSwitcher,
   PageHeader,
   Choice,
+  SearchField,
 } from '../../ui/controls';
 import { IconReceipt } from '../../ui/icons';
+import { personDot, personKey } from '../../ui/person';
 import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
-import { balanceBefore, ledger, monthSummary, potBalance, type LedgerEntry } from '../../domain/budget';
+import { ledger, monthSummary, potBalance, type LedgerEntry } from '../../domain/budget';
 import {
   dayLabel,
   catLabel,
@@ -45,7 +47,7 @@ const memberOf = (snap: Snapshot, email: string): Member =>
   snap.household.members.find((m) => m.email === email) ?? {
     email,
     name: email.split('@')[0],
-    color: '#566070',
+    color: '',
   };
 
 function shortDate(iso: string) {
@@ -119,8 +121,6 @@ export function BudgetScreen() {
     .slice(-5)
     .reverse();
   const pct = Math.min(100, Math.round(sum.progress * 100));
-  const barColor =
-    sum.tone === 'over' ? 'var(--red)' : sum.tone === 'warn' ? 'var(--saffron)' : 'var(--cobalt)';
 
   const purchaseRow =
     purchase && purchase !== 'new' ? rows.find((r) => r.kind === 'out' && r.id === purchase) : undefined;
@@ -128,38 +128,41 @@ export function BudgetScreen() {
   return (
     <>
       <PageHeader title="Budget" />
-      <div className="plate" style={{ marginTop: 16 }}>
+      {/* the pot: a receipt with a torn bottom edge */}
+      <div className="plate" style={{ marginTop: 'var(--space-4)' }}>
         <div className="plate-inner">
-          <span style={{ fontSize: 15 }}>In the pot right now</span>
+          <span className="caps">In the pot right now</span>
           <span className="plate-num" aria-live="polite">
-            {money(pot)}
+            {/* the amount at 44 px, "lei" smaller: a line may break between them, never inside */}
+            {money(pot).replace(/\s*lei$/, '')} <span className="unit">lei</span>
           </span>
-          <div className="grid-2" style={{ marginTop: 14 }}>
-            <button type="button" className="btn btn-md plate-btn" onClick={() => setMoney('new')}>
+          <hr className="plate-rule" />
+          <div className="grid-2">
+            <button type="button" className="btn btn-lg btn-block plate-btn" onClick={() => setMoney('new')}>
               Add money
             </button>
-            <button type="button" className="btn btn-md plate-btn-outline" onClick={() => setPurchase('new')}>
+            <button
+              type="button"
+              className="btn btn-lg btn-block plate-btn-outline"
+              onClick={() => setPurchase('new')}
+            >
               Add purchase
             </button>
           </div>
         </div>
       </div>
 
-      <div style={{ marginTop: 18 }}>
-        <MonthSwitcher
-          label={monthLabel(ym)}
-          onPrev={() => setYm(shiftMonth(ym, -1))}
-          onNext={() => setYm(shiftMonth(ym, 1))}
-          prevDisabled={ym <= firstYm}
-          nextDisabled={ym >= currentMonth()}
-        />
-      </div>
-      <div className="card card-pad stack" style={{ gap: 10 }}>
-        <div className="muted" style={{ fontSize: 15 }}>
-          Started {monthName(ym)} with {money(balanceBefore(budgets, ym))} in the pot
-        </div>
-        <div style={{ fontSize: 17 }}>
-          <strong>{money(sum.spent)}</strong> spent{sum.target ? ` of the ${money(sum.target)} target` : ''}
+      <MonthSwitcher
+        label={monthLabel(ym)}
+        onPrev={() => setYm(shiftMonth(ym, -1))}
+        onNext={() => setYm(shiftMonth(ym, 1))}
+        prevDisabled={ym <= firstYm}
+        nextDisabled={ym >= currentMonth()}
+      />
+      <div className="card card-pad stack" style={{ gap: 'var(--space-3)' }}>
+        <div className="row-between" style={{ alignItems: 'baseline' }}>
+          <span className="money-l">{money(sum.spent)}</span>
+          <span className="muted">spent</span>
         </div>
         {sum.target > 0 && (
           <>
@@ -171,34 +174,23 @@ export function BudgetScreen() {
               aria-valuemin={0}
               aria-valuemax={100}
             >
-              <div style={{ width: `${pct}%`, background: barColor }} />
+              <div className={sum.tone === 'over' ? 'over' : undefined} style={{ width: `${pct}%` }} />
+              <span className="tick" style={{ left: '80%' }} aria-hidden />
             </div>
-            <div
-              className="muted"
-              style={{ fontSize: 15, color: sum.tone === 'over' ? 'var(--red)' : undefined }}
-            >
-              {sum.spent <= sum.target
-                ? `${money(sum.target - sum.spent)} left before you reach the target`
-                : `${money(sum.spent - sum.target)} over the target this month`}
-            </div>
+            {sum.spent <= sum.target ? (
+              <div className="muted">
+                <span className="money" style={{ color: 'var(--ink)' }}>
+                  {money(sum.target - sum.spent)}
+                </span>{' '}
+                left this month
+              </div>
+            ) : (
+              <div className="danger-text">
+                <span className="money">{money(sum.spent - sum.target)}</span> over the target
+              </div>
+            )}
           </>
         )}
-        <div className="stack" style={{ gap: 4, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-          {snap.household.members.map((m) => (
-            <button key={m.email} type="button" className="row person-row" onClick={() => setPerson(m.email)}>
-              <span className="dot" style={{ background: m.color }} />
-              <span className="bold" style={{ minWidth: 60 }}>
-                {m.name}
-              </span>
-              <span className="grow muted" style={{ fontSize: 15, textAlign: 'left' }}>
-                put in {money(sum.byPerson[m.email]?.in ?? 0)}, spent {money(sum.byPerson[m.email]?.out ?? 0)}
-              </span>
-              <span className="chev" aria-hidden>
-                ›
-              </span>
-            </button>
-          ))}
-        </div>
       </div>
 
       <h2 className="h2">History</h2>
@@ -225,9 +217,7 @@ export function BudgetScreen() {
           {filter.kind === 'category' ? filter.name : 'Category'}
         </Chip>
       </div>
-      <input
-        type="search"
-        className="input search"
+      <SearchField
         style={{ marginTop: 10 }}
         aria-label="Search history"
         placeholder="Search by item or store"
@@ -391,8 +381,8 @@ function LedgerRow({
     <div>
       <button type="button" className="ledger-row" aria-expanded={open} onClick={onToggle}>
         <span
-          className="dot"
-          style={{ background: r.kind === 'adj' ? 'var(--muted)' : m.color, marginTop: 6 }}
+          className={r.kind === 'adj' ? 'dot tag-grey' : personDot(snap.household.members, m.email)}
+          style={{ marginTop: 'var(--space-2)' }}
         />
         <span className="grow stack" style={{ gap: 0 }}>
           <span className="title">{title}</span>
@@ -402,7 +392,7 @@ function LedgerRow({
           </span>
         </span>
         <span className="stack" style={{ gap: 0, alignItems: 'flex-end' }}>
-          <span className="bold num" style={{ color: r.kind === 'out' ? 'var(--ink)' : 'var(--cobalt)' }}>
+          <span className="money">
             {r.kind === 'out' ? money(-r.amount) : money(r.amount, { sign: true })}
           </span>
           <span className="tiny muted">{dayLabel(r.date)}</span>
@@ -446,9 +436,9 @@ function LedgerRow({
               type="button"
               className="btn btn-sm"
               style={{
-                border: '1px dashed var(--line-strong)',
+                border: '1px dashed var(--ink-muted)',
                 background: 'var(--surface-2)',
-                color: 'var(--cobalt)',
+                color: 'var(--primary)',
                 alignSelf: 'flex-start',
                 height: 44,
               }}
@@ -569,7 +559,7 @@ function AdjustSheet({ onClose }: { onClose: () => void }) {
   const ok = v > 0 && reason.trim().length > 0;
   return (
     <Sheet onClose={onClose} title="Adjust the pot" labelledBy="adj-title">
-      <p className="muted" style={{ margin: 0, fontSize: 15 }}>
+      <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-secondary)' }}>
         For when the app's {money(pot)} doesn't match the real money, for example after counting cash or a
         bank fee. It shows in the history with your reason.
       </p>
@@ -643,13 +633,13 @@ function PersonSheet({ email, ym, onClose }: { email: string; ym: string; onClos
       <div className="grid-2">
         <div className="card card-pad stack" style={{ gap: 0 }}>
           <span className="small muted">Put in</span>
-          <span className="display bold num" style={{ fontSize: 22, color: 'var(--cobalt)' }}>
+          <span className="money-l" style={{ fontSize: 'var(--fs-money-l)', color: 'var(--primary)' }}>
             {money(putIn)}
           </span>
         </div>
         <div className="card card-pad stack" style={{ gap: 0 }}>
           <span className="small muted">Spent</span>
-          <span className="display bold num" style={{ fontSize: 22 }}>
+          <span className="money-l" style={{ fontSize: 'var(--fs-money-l)' }}>
             {money(spent)}
           </span>
         </div>
@@ -666,8 +656,8 @@ function PersonSheet({ email, ym, onClose }: { email: string; ym: string; onClos
                 </span>
                 <span className="bar-track">
                   <span
-                    className="bar-fill"
-                    style={{ width: `${Math.max(2, Math.round(c.rel * 100))}%`, background: m.color }}
+                    className={`bar-fill ${personKey(snap.household.members, m.email) === 'b' ? 'use' : ''}`}
+                    style={{ width: `${Math.max(2, Math.round(c.rel * 100))}%` }}
                   />
                 </span>
               </div>

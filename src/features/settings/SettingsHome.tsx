@@ -153,7 +153,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet onClose={onClose} title="Import from a backup" labelledBy="imp-title">
-      <p className="muted" style={{ margin: 0, fontSize: 15 }}>
+      <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-secondary)' }}>
         Pick a household-backup file. Nothing is replaced until you confirm, and you can undo right after.
       </p>
       <label className="btn btn-outline btn-md" style={{ cursor: 'pointer' }}>

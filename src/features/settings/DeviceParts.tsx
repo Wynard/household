@@ -93,7 +93,9 @@ export function GeminiSettings() {
             >
               <span>
                 {m.id}
-                <span style={{ display: 'block', fontWeight: 400, fontSize: 13 }}>{m.note}</span>
+                <span style={{ display: 'block', fontWeight: 400, fontSize: 'var(--fs-secondary)' }}>
+                  {m.note}
+                </span>
               </span>
             </button>
           ))}

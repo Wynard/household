@@ -200,7 +200,7 @@ export function CookingMode({
         <div style={{ width: `${steps.length ? Math.round((done.size / steps.length) * 100) : 0}%` }} />
       </div>
       <div className="row-between" style={{ padding: '8px 12px 0 20px' }}>
-        <span className="bold muted" style={{ fontSize: 15 }}>
+        <span className="bold muted" style={{ fontSize: 'var(--fs-secondary)' }}>
           {recipe.title}
         </span>
         <button type="button" className="icon-btn" aria-label="Exit cooking mode" onClick={onClose}>
@@ -208,7 +208,7 @@ export function CookingMode({
         </button>
       </div>
       <div className="full-body" style={{ padding: '8px 16px 20px', gap: 10 }}>
-        <p className="muted" style={{ margin: '0 4px 4px', fontSize: 15 }}>
+        <p className="muted" style={{ margin: '0 4px 4px', fontSize: 'var(--fs-secondary)' }}>
           {done.size} of {steps.length} steps done. Serves {servings}.
         </p>
         {steps.map((st, i) => {
@@ -252,7 +252,7 @@ export function CookingMode({
                       <span
                         key={r.ingredient.id}
                         className="tag tag-cobalt"
-                        style={{ padding: '4px 10px', borderRadius: 9, fontSize: 15 }}
+                        style={{ padding: '4px 10px', borderRadius: 9, fontSize: 'var(--fs-secondary)' }}
                       >
                         {[amountText(r), r.ingredient.name].filter(Boolean).join(' ')}
                       </span>
@@ -295,7 +295,7 @@ export function CookingMode({
           <button
             type="button"
             className="btn btn-primary btn-block"
-            style={{ height: 58, fontSize: 18 }}
+            style={{ height: 58, fontSize: 'var(--fs-label)' }}
             onClick={() => setFinishing(true)}
           >
             Finish cooking
@@ -305,7 +305,7 @@ export function CookingMode({
             <button
               type="button"
               className="btn btn-outline"
-              style={{ height: 58, flex: 1, fontSize: 17 }}
+              style={{ height: 58, flex: 1, fontSize: 'var(--fs-label)' }}
               onClick={() => setFinishing(true)}
             >
               Finish
@@ -313,7 +313,7 @@ export function CookingMode({
             <button
               type="button"
               className="btn btn-primary"
-              style={{ height: 58, flex: 2, fontSize: 18 }}
+              style={{ height: 58, flex: 2, fontSize: 'var(--fs-label)' }}
               onClick={() => {
                 const d = new Set(done).add(current);
                 setDone(d);
@@ -400,7 +400,7 @@ export function FinishCooking({
     <FullScreen z={36} rim={false} bg="var(--surface)" label="Finish cooking">
       <div className="full-body" style={{ padding: '16px 24px' }}>
         {onBack && <BackButton label="Back to the steps" onClick={onBack} />}
-        <h2 className="display" style={{ margin: 0, fontSize: 28, lineHeight: 1.15 }}>
+        <h2 className="display" style={{ margin: 0, fontSize: 'var(--fs-sheet-title)', lineHeight: 1.15 }}>
           Enjoy! Take these out of stock?
         </h2>
         {entries.length ? (
@@ -489,7 +489,7 @@ export function FinishCooking({
         <button
           type="button"
           className="btn btn-primary btn-lg"
-          style={{ fontSize: 18 }}
+          style={{ fontSize: 'var(--fs-label)' }}
           disabled={busy || bad}
           onClick={() => void apply(true)}
         >

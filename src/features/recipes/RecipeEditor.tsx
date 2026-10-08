@@ -239,7 +239,7 @@ export function RecipeEditor({
             </Field>
           </div>
           <div className="stack-sm">
-            <span className="bold" style={{ fontSize: 15 }}>
+            <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
               Categories
             </span>
             <div className="wrap">
@@ -306,7 +306,7 @@ export function RecipeEditor({
                   style={{
                     gap: 6,
                     padding: '10px 6px 10px 16px',
-                    background: replacing === g.id ? 'var(--cobalt-wash)' : undefined,
+                    background: replacing === g.id ? 'var(--surface-2)' : undefined,
                   }}
                 >
                   <div className="row">
@@ -552,7 +552,7 @@ export function RecipeEditor({
                     });
                 }}
               />
-              <label className="row small muted" style={{ fontSize: 15 }}>
+              <label className="row small muted" style={{ fontSize: 'var(--fs-secondary)' }}>
                 Timer, minutes
                 <DecimalInput
                   className="input input-sm"

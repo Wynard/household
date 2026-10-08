@@ -320,8 +320,8 @@ export function PurchaseEditor({
               style={{
                 padding: '12px 8px 12px 14px',
                 gap: 8,
-                borderColor: noCat ? 'var(--red)' : low ? 'var(--saffron)' : undefined,
-                background: low ? 'var(--saffron-soft)' : undefined,
+                borderColor: noCat ? 'var(--danger)' : low ? 'var(--highlight)' : undefined,
+                background: low ? 'var(--highlight)' : undefined,
               }}
             >
               {l.rawText && <div className="mono">{l.rawText}</div>}
@@ -375,11 +375,14 @@ export function PurchaseEditor({
               </div>
               <div className="row-between" style={{ paddingRight: 6 }}>
                 <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                  <span className="small bold" style={{ color: noCat ? 'var(--red)' : 'var(--muted)' }}>
+                  <span
+                    className="small bold"
+                    style={{ color: noCat ? 'var(--danger-text)' : 'var(--ink-muted)' }}
+                  >
                     {l.category ? catLabel(l.category, l.subcategory) : 'Needs a category'}
                   </span>
                   {l.auto && l.category && (
-                    <span className="tag tag-cobalt" style={{ fontSize: 12 }}>
+                    <span className="tag tag-cobalt" style={{ fontSize: 'var(--fs-secondary)' }}>
                       Suggested
                     </span>
                   )}
@@ -387,7 +390,7 @@ export function PurchaseEditor({
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
-                  style={{ height: 36, borderWidth: 1, fontSize: 14 }}
+                  style={{ height: 36, borderWidth: 1, fontSize: 'var(--fs-secondary)' }}
                   onClick={() => setPicking(l.id)}
                 >
                   {l.category ? 'Change' : 'Pick category'}
@@ -396,11 +399,11 @@ export function PurchaseEditor({
               {!editing && (
                 <div
                   className="row-between"
-                  style={{ paddingRight: 6, borderTop: '1px solid var(--track)', paddingTop: 8 }}
+                  style={{ paddingRight: 6, borderTop: '1px solid var(--line)', paddingTop: 8 }}
                 >
                   <span
                     className="small"
-                    style={{ color: it ? 'var(--cobalt)' : 'var(--muted)', fontWeight: 700 }}
+                    style={{ color: it ? 'var(--primary)' : 'var(--ink-muted)', fontWeight: 700 }}
                   >
                     {it
                       ? `Matches ${it.name} in your items`
@@ -434,7 +437,7 @@ export function PurchaseEditor({
                   <button
                     type="button"
                     className="btn btn-ink btn-md"
-                    style={{ fontSize: 15 }}
+                    style={{ fontSize: 'var(--fs-secondary)' }}
                     onClick={() => updLine(l.id, { confirmed: true })}
                   >
                     Yes, it's {it.name}
@@ -442,7 +445,11 @@ export function PurchaseEditor({
                   <button
                     type="button"
                     className="btn btn-md"
-                    style={{ border: '2px solid var(--ink)', background: 'transparent', fontSize: 15 }}
+                    style={{
+                      border: '2px solid var(--ink)',
+                      background: 'transparent',
+                      fontSize: 'var(--fs-secondary)',
+                    }}
                     onClick={() => updLine(l.id, { itemId: undefined, confirmed: true })}
                   >
                     It's something else
@@ -491,7 +498,11 @@ export function PurchaseEditor({
             <span
               className="small bold"
               style={{
-                color: !ln.name.trim() ? 'var(--muted)' : guess ? 'var(--cobalt)' : 'var(--saffron-ink)',
+                color: !ln.name.trim()
+                  ? 'var(--ink-muted)'
+                  : guess
+                    ? 'var(--primary)'
+                    : 'var(--on-highlight)',
               }}
             >
               {!ln.name.trim()
@@ -538,7 +549,7 @@ export function PurchaseEditor({
         {d.printedTotal !== undefined && (
           <div
             className={`callout ${Math.abs(diff) < 0.01 ? 'callout-cobalt' : 'callout-saffron'} bold`}
-            style={{ fontSize: 15 }}
+            style={{ fontSize: 'var(--fs-secondary)' }}
           >
             {Math.abs(diff) < 0.01
               ? `Lines add up to ${money(total)}, same as the receipt total`
