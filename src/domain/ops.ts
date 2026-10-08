@@ -424,14 +424,18 @@ export const O = {
   }),
   household: {
     set: (field: string, value: unknown): Op => ({ t: 'setField', file: 'household', field, value }),
-    listAdd: (field: 'places' | 'stores' | 'recipeCategories', value: string, index?: number): Op => ({
+    listAdd: (
+      field: 'places' | 'stores' | 'recipeCategories' | 'units',
+      value: string,
+      index?: number,
+    ): Op => ({
       t: 'listAdd',
       file: 'household',
       field,
       value,
       index,
     }),
-    listRemove: (field: 'places' | 'stores' | 'recipeCategories', value: string): Op => ({
+    listRemove: (field: 'places' | 'stores' | 'recipeCategories' | 'units', value: string): Op => ({
       t: 'listRemove',
       file: 'household',
       field,

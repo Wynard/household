@@ -1,3 +1,4 @@
+import { allUnits } from '../../domain/units';
 import { useMemo, useState, type ReactNode } from 'react';
 import { FullScreen } from '../../ui/Sheet';
 import { Choice, DecimalInput, Field } from '../../ui/controls';
@@ -6,7 +7,7 @@ import { useMe, useRun, useSnapshot } from '../../app/data';
 import { categorise, findKnownItem } from '../../domain/categorise';
 import { catLabel, money, num, parseDecimal, qty as fmtQty, round2 } from '../../domain/format';
 import { nowHHmm, todayISO } from '../../domain/dates';
-import { UNITS, type Item, type Purchase, type Unit } from '../../domain/schemas';
+import { type Item, type Purchase, type Unit } from '../../domain/schemas';
 import type { RunResult } from '../../app/data';
 import { CategoryPicker } from '../stock/CategoryPicker';
 
@@ -356,7 +357,7 @@ export function PurchaseEditor({
                   value={l.unit}
                   onChange={(e) => updLine(l.id, { unit: e.target.value as Unit })}
                 >
-                  {UNITS.map((u) => (
+                  {allUnits(snap?.household).map((u) => (
                     <option key={u} value={u}>
                       {u}
                     </option>
@@ -508,7 +509,7 @@ export function PurchaseEditor({
                 onChange={(e) => setLn({ ...ln, quantity: e.target.value })}
               />
               <div className="unit-grid grow" role="group" aria-label="Unit" style={{ gap: 4 }}>
-                {UNITS.map((u) => (
+                {allUnits(snap?.household).map((u) => (
                   <button
                     key={u}
                     type="button"

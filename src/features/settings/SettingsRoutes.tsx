@@ -8,9 +8,10 @@ import {
   RecipeCategoriesTable,
   RecipesTable,
   StoresTable,
+  UnitsTable,
 } from './tables';
 import { DeviceSettings, HouseholdSettings } from './HouseholdSettings';
-import { AssistantSettings, GeminiSettings } from './DeviceParts';
+import { AppearanceSettings, AssistantSettings, GeminiSettings } from './DeviceParts';
 
 /** Settings is a full-screen area (no tab bar or Assistant button). */
 export function SettingsRoutes() {
@@ -24,11 +25,13 @@ export function SettingsRoutes() {
       <Route path="recipes" element={<RecipesTable />} />
       <Route path="recipe-categories" element={<RecipeCategoriesTable />} />
       <Route path="stores" element={<StoresTable />} />
+      <Route path="units" element={<UnitsTable />} />
       <Route path="household" element={<HouseholdSettings />} />
       <Route
         path="device"
         element={
           <DeviceSettings>
+            <AppearanceSettings />
             <GeminiSettings />
           </DeviceSettings>
         }

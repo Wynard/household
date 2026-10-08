@@ -8,6 +8,11 @@ import './styles/base.css';
 import { config } from './config';
 import { MockApp } from './app/App';
 import { GoogleApp } from './app/GoogleApp';
+import { applyTheme } from './app/theme';
+import { prefs } from './app/prefs';
+
+// before the first paint, so a chosen theme never flashes the other one
+applyTheme(prefs.ui().theme);
 
 const root = document.getElementById('root')!;
 

@@ -63,6 +63,15 @@ export function SettingsHome() {
           onClick={() => nav('/settings/places')}
         />
         <ChevronRow
+          title="Units"
+          sub={
+            h.units.length
+              ? `Your own: ${h.units.slice(0, 3).join(', ')}${h.units.length > 3 ? '…' : ''}`
+              : 'g, kg, ml, l, pcs. Add your own, like can or jar'
+          }
+          onClick={() => nav('/settings/units')}
+        />
+        <ChevronRow
           title="Recipes"
           sub={plural(snap.recipes.recipes.length, 'recipe')}
           onClick={() => nav('/settings/recipes')}

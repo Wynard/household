@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { applyTheme } from '../../app/theme';
+import type { Theme } from '../../app/prefs';
 import { prefs } from '../../app/prefs';
 import { useAssistantUi } from '../../app/assistantUi';
 import { Field, Seg, Switch } from '../../ui/controls';
@@ -163,5 +165,34 @@ export function AssistantSettings() {
         <GeminiPrivacyNote />
       </div>
     </SettingsPage>
+  );
+}
+
+/** Settings › This phone › Appearance: Automatic follows the phone's dark mode. */
+export function AppearanceSettings() {
+  const [theme, setTheme] = useState<Theme>(prefs.ui().theme);
+  return (
+    <>
+      <h2 className="group-title">Appearance</h2>
+      <div className="card card-pad stack" style={{ gap: 10 }}>
+        <Seg
+          label="Appearance"
+          value={theme}
+          onChange={(t) => {
+            setTheme(t);
+            prefs.setUi({ theme: t });
+            applyTheme(t);
+          }}
+          options={[
+            ['system', 'Automatic'],
+            ['light', 'Light'],
+            ['dark', 'Dark'],
+          ]}
+        />
+        <span className="small muted">
+          {theme === 'system' ? 'Follows the dark mode setting of this phone.' : 'Only on this phone.'}
+        </span>
+      </div>
+    </>
   );
 }

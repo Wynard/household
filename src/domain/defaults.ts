@@ -36,4 +36,5 @@ export const MEMBER_COLORS = ['#1F4FA8', '#E8B030'];
 export const NON_FOOD_CATEGORIES = ['Household', 'Personal care'];
 
 /** Stepper step per unit (6.1). */
-export const STEP_BY_UNIT = { pcs: 1, g: 100, ml: 100, kg: 0.5, l: 0.5 } as const;
+/** Stepper step per built-in unit; own counting units (can, jar…) step by 1. */
+export const STEP_BY_UNIT: Record<string, number> = { pcs: 1, g: 100, ml: 100, kg: 0.5, l: 0.5 };

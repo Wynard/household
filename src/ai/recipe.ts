@@ -85,7 +85,11 @@ const recipeAnswer = z
         z.object({
           name: z.string().min(1),
           amount: z.number().positive().nullable().catch(null),
-          unit: z.enum(RECIPE_UNITS).nullable().catch(null),
+          unit: z.enum(RECIPE_UNITS).nullable().catch(null) as z.ZodType<
+            string | null,
+            z.ZodTypeDef,
+            unknown
+          >,
           itemId: z.string().nullable().catch(null),
           pantryStaple: z.boolean().catch(false),
           optional: z.boolean().catch(false),

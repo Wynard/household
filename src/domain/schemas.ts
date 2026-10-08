@@ -1,17 +1,22 @@
 import { z } from 'zod';
 
 // ---------- primitives ----------
+/** Built-in stock units. Households can add their own counting units (can, jar, pack…) in Settings. */
 export const UNITS = ['g', 'kg', 'ml', 'l', 'pcs'] as const;
-export const unitSchema = z.enum(UNITS);
-export type Unit = z.infer<typeof unitSchema>;
+/** A unit name: a built-in one or one of household.units. */
+export const unitSchema = z.string().trim().min(1).max(20);
+export type Unit = string;
 
 export const BASE_UNITS = ['g', 'ml', 'pcs'] as const;
-export const baseUnitSchema = z.enum(BASE_UNITS);
-export type BaseUnit = z.infer<typeof baseUnitSchema>;
+/** g, ml, pcs, or a household's own counting unit (which is its own base). */
+export const baseUnitSchema = unitSchema;
+export type BaseUnit = string;
 
-export const RECIPE_UNITS = [...UNITS, 'tsp', 'tbsp', 'cup', 'pinch', 'to taste'] as const;
-export const recipeUnitSchema = z.enum(RECIPE_UNITS);
-export type RecipeUnit = z.infer<typeof recipeUnitSchema>;
+/** Kitchen measures that recipes use but stock can't hold. */
+export const MEASURE_UNITS = ['tsp', 'tbsp', 'cup', 'pinch', 'to taste'] as const;
+export const RECIPE_UNITS = [...UNITS, ...MEASURE_UNITS] as const;
+export const recipeUnitSchema = unitSchema;
+export type RecipeUnit = string;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 const isoDateTime = z.string().min(10);
@@ -51,6 +56,8 @@ export const householdPayload = z.object({
   places: z.array(z.string().min(1)),
   stores: z.array(z.string().min(1)),
   recipeCategories: z.array(z.string().min(1)),
+  /** The household's own counting units (can, jar, pack…), on top of the built-in ones. */
+  units: z.array(z.string().min(1)).default([]),
   /** Years that have a budget-YYYY.json / usage-YYYY.json file. */
   years: z.array(z.number().int()),
   /** Drive file ID of every data file, so each phone can tell "not created yet" from "not shared with me yet". */
@@ -271,7 +278,7 @@ export const usagePayload = z.object({
 export type UsageYear = z.infer<typeof usagePayload>;
 
 // ---------- file envelope ----------
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const envelope = z.object({
   schemaVersion: z.number().int(),
   updatedAt: isoDateTime,

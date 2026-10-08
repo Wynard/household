@@ -1,3 +1,4 @@
+import { allUnits, isCountUnit } from '../../domain/units';
 import { useMemo, useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import { DecimalInput, DeleteButton, Field, Seg, Switch } from '../../ui/controls';
@@ -5,7 +6,7 @@ import { useRun, useSnapshot } from '../../app/data';
 import { useToast } from '../../ui/Toast';
 import { categorise, normalise } from '../../domain/categorise';
 import { catLabel, num, parseDecimal } from '../../domain/format';
-import { UNITS, type Item, type ItemStatus, type Unit } from '../../domain/schemas';
+import { type Item, type ItemStatus, type Unit } from '../../domain/schemas';
 import { CategoryPicker } from './CategoryPicker';
 
 type Draft = {
@@ -293,7 +294,7 @@ export function ItemEditor({
                     Unit
                   </span>
                   <div className="unit-grid" role="group" aria-label="Unit">
-                    {UNITS.map((u) => (
+                    {allUnits(snap?.household).map((u) => (
                       <button
                         key={u}
                         type="button"
@@ -323,14 +324,18 @@ export function ItemEditor({
                     />
                   </Field>
                 </div>
-                {d.unit === 'pcs' && (
+                {isCountUnit(d.unit) && (
                   <Field
-                    label="Weight per piece, in grams (optional)"
-                    hint="Lets recipes in grams use pieces, e.g. one egg is about 60 g."
+                    label={`Weight per ${d.unit === 'pcs' ? 'piece' : d.unit}, in grams (optional)`}
+                    hint={
+                      d.unit === 'pcs'
+                        ? 'Lets recipes in grams use pieces, e.g. one egg is about 60 g.'
+                        : `Lets recipes in grams use it, e.g. one ${d.unit} holds 400 g.`
+                    }
                   >
                     <DecimalInput
                       value={d.gramsPerPiece}
-                      placeholder="e.g. 60"
+                      placeholder={d.unit === 'pcs' ? 'e.g. 60' : 'e.g. 400'}
                       onChange={(e) => upd({ gramsPerPiece: e.target.value })}
                     />
                   </Field>

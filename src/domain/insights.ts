@@ -1,5 +1,5 @@
 // Insights aggregation (6.6). Pure functions over budget and usage files.
-import type { BudgetFile, CookedEntry, PurchaseLine, UsageFile } from './schemas';
+import type { BaseUnit, BudgetFile, CookedEntry, PurchaseLine, UsageFile } from './schemas';
 import { shiftMonth, weekBucket } from './dates';
 import { round2, round3 } from './format';
 import { toBase } from './units';
@@ -89,7 +89,7 @@ export interface SpendingInsights {
     itemId?: string;
     value: number;
     quantity: number;
-    unit: 'g' | 'ml' | 'pcs';
+    unit: BaseUnit;
     subcategory: string;
   }[];
   /** contributions this month (person filter applies) */
@@ -126,7 +126,7 @@ export function spendingInsights(
       itemId?: string;
       value: number;
       quantity: number;
-      unit: 'g' | 'ml' | 'pcs';
+      unit: BaseUnit;
       subcategory: string;
     }
   >();
@@ -207,12 +207,12 @@ export interface UsageInsights {
   totalValue: number;
   distinctItems: number;
   meals: number;
-  mostUsed: { name: string; itemId: string; quantity: number; unit: 'g' | 'ml' | 'pcs'; value: number }[];
+  mostUsed: { name: string; itemId: string; quantity: number; unit: BaseUnit; value: number }[];
   level: DrillLevel;
   byDrill: Bar[];
   mostCooked: { recipeId: string; times: number }[];
   /** per item: bought vs used this month, in base units */
-  boughtVsUsed: { name: string; itemId: string; unit: 'g' | 'ml' | 'pcs'; bought: number; used: number }[];
+  boughtVsUsed: { name: string; itemId: string; unit: BaseUnit; bought: number; used: number }[];
   /** simple items that were marked Out this month, most often first */
   ranOutOf: { itemId: string; name: string; times: number; last: string }[];
 }
@@ -249,7 +249,7 @@ export function usageInsights(
     .filter((c) => c.date.startsWith(ym) && (!f.person || c.by === f.person));
   const byItem = new Map<
     string,
-    { name: string; itemId: string; quantity: number; unit: 'g' | 'ml' | 'pcs'; value: number }
+    { name: string; itemId: string; quantity: number; unit: BaseUnit; value: number }
   >();
   for (const e of entries) {
     const x = byItem.get(e.itemId) ?? { name: e.name, itemId: e.itemId, quantity: 0, unit: e.unit, value: 0 };
@@ -262,7 +262,7 @@ export function usageInsights(
   for (const c of cooked) cookedCount.set(c.recipeId, (cookedCount.get(c.recipeId) ?? 0) + 1);
 
   // bought this month (same filters, no store filter) vs used
-  const bought = new Map<string, { name: string; unit: 'g' | 'ml' | 'pcs'; q: number }>();
+  const bought = new Map<string, { name: string; unit: BaseUnit; q: number }>();
   for (const l of spendLines(budgets, ym, { ...f, store: undefined })) {
     if (!l.itemId) continue;
     const b = toBase(l.quantity, l.unit);

@@ -37,7 +37,7 @@ export function wantsOnList(it: Item): boolean {
   return false;
 }
 
-export const stepFor = (it: Pick<Item, 'unit'>) => STEP_BY_UNIT[it.unit];
+export const stepFor = (it: Pick<Item, 'unit'>) => STEP_BY_UNIT[it.unit] ?? 1;
 
 /**
  * Shopping-list ops that keep automatic entries in sync for the given items:

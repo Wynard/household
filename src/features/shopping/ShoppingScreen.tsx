@@ -1,3 +1,4 @@
+import { allUnits } from '../../domain/units';
 import { useMemo, useState } from 'react';
 import { useRun, useSnapshot } from '../../app/data';
 import { useScreenContext } from '../../app/assistantUi';
@@ -7,7 +8,7 @@ import { IconCheck, IconPen } from '../../ui/icons';
 import { findKnownItem, ruleCategory } from '../../domain/categorise';
 import { parseQuickAdd } from '../../domain/quickAdd';
 import { num, parseDecimal, plural, qty as fmtQty } from '../../domain/format';
-import { UNITS, type Item, type ShoppingItem, type Unit } from '../../domain/schemas';
+import { type Item, type ShoppingItem, type Unit } from '../../domain/schemas';
 import type { Snapshot } from '../../domain/actions';
 
 /** Rough store-walk order for sections. */
@@ -220,6 +221,7 @@ export function ShoppingScreen() {
 
 function EditEntrySheet({ entry, onClose }: { entry: ShoppingItem; onClose: () => void }) {
   const { run } = useRun();
+  const { snap } = useSnapshot();
   const [name, setName] = useState(entry.name);
   const [amount, setAmount] = useState(entry.amount ? num(entry.amount, 3) : '');
   const [unit, setUnit] = useState<Unit | undefined>(entry.unit);
@@ -239,7 +241,7 @@ function EditEntrySheet({ entry, onClose }: { entry: ShoppingItem; onClose: () =
             Unit
           </span>
           <div className="unit-grid" role="group" aria-label="Unit">
-            {UNITS.map((u) => (
+            {allUnits(snap?.household).map((u) => (
               <button
                 key={u}
                 type="button"

@@ -11,12 +11,16 @@ const KEYS = {
   chat: 'hh-chat',
 } as const;
 
+export type Theme = 'system' | 'light' | 'dark';
+
 export interface UiPrefs {
   stockGroup: 'place' | 'category';
   voiceLang: 'ro-RO' | 'en-US';
   assistantOff: boolean;
   /** Stock sections the person folded away, as 'place:Fridge' or 'category:Pantry' */
   stockCollapsed: string[];
+  /** Appearance: follow the phone, or always light / dark */
+  theme: Theme;
   /** mock mode only: which sample person you are */
   mockUser?: string;
 }
@@ -25,6 +29,7 @@ const DEFAULT_UI: UiPrefs = {
   voiceLang: 'ro-RO',
   assistantOff: false,
   stockCollapsed: [],
+  theme: 'system',
 };
 
 function get(k: string): string | null {

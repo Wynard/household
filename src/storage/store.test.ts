@@ -76,9 +76,7 @@ describe('DataStore', () => {
   it('refuses to write data that would not validate', async () => {
     const { store } = setup();
     await store.ensure('items');
-    await expect(store.commit([O.item.patch('eggs', { unit: 'bananas' as never })])).rejects.toThrow(
-      /Refused to save/,
-    );
+    await expect(store.commit([O.item.patch('eggs', { quantity: -1 })])).rejects.toThrow(/Refused to save/);
   });
 });
 

@@ -32,6 +32,9 @@ import {
   updatePurchase,
 } from './budget';
 import {
+  addUnit,
+  deleteUnit,
+  renameUnit,
   addPlace,
   addStore,
   deleteCategory,
@@ -52,6 +55,9 @@ import {
 } from './settings';
 
 export const ACTIONS = {
+  addUnit,
+  deleteUnit,
+  renameUnit,
   importList,
   setItemStatus,
   addPurchase,

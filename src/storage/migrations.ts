@@ -1,4 +1,4 @@
-// File format migrations (pure, idempotent). v1 -> v2: item tracking. v2 -> v3: items can be inactive.
+// File format migrations (pure, idempotent). v1 -> v2: item tracking. v2 -> v3: items can be inactive. v3 -> v4: own units.
 type Raw = Record<string, unknown>;
 
 /**
@@ -30,3 +30,6 @@ export function migrateV1toV2(raw: Raw, file: string): Raw {
  * must refuse v3 files and ask for a reload instead.
  */
 export const migrateV2toV3 = (raw: Raw): Raw => ({ ...raw, schemaVersion: 3 });
+
+/** v4: units became open (household.units). Older apps must refuse files that may hold "can" or "jar". */
+export const migrateV3toV4 = (raw: Raw): Raw => ({ ...raw, schemaVersion: 4 });

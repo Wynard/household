@@ -6,7 +6,8 @@ import { IconGrip } from '../../ui/icons';
 import { useToast } from '../../ui/Toast';
 import { normalise } from '../../domain/categorise';
 import { catLabel, plural } from '../../domain/format';
-import { categoryUse, placeUse, recipeCategoryUse, storeUse } from '../../domain/actions/settings';
+import { categoryUse, placeUse, recipeCategoryUse, storeUse, unitUse } from '../../domain/actions/settings';
+import { UNITS } from '../../domain/schemas';
 import type { Snapshot } from '../../domain/actions';
 import { ItemEditor } from '../stock/ItemEditor';
 import { RecipeEditor } from '../recipes/RecipeEditor';
@@ -487,6 +488,89 @@ export function StoresTable() {
             edit.old
               ? async () =>
                   !!(await run('deleteStore', { name: edit.old! }, { toast: `${edit.old} deleted` }))
+              : undefined
+          }
+          onClose={() => setEdit(null)}
+        />
+      )}
+    </SettingsPage>
+  );
+}
+
+// ---------- Units ----------
+const BUILT_IN_HINT: Record<string, string> = {
+  g: 'grams',
+  kg: 'kilograms',
+  ml: 'millilitres',
+  l: 'litres',
+  pcs: 'pieces',
+};
+
+export function UnitsTable() {
+  const { snap } = useSnapshot();
+  const { run } = useRun();
+  const [edit, setEdit] = useState<{ old?: string } | null>(null);
+  const ctx = useMemo(() => (snap ? ctxOf(snap) : null), [snap]);
+  if (!snap || !ctx) return <Loading />;
+  const units = snap.household.units;
+  return (
+    <SettingsPage
+      title="Units"
+      hint="Your own units are counted one at a time, like pieces: a can, a jar, a pack. Give an item a weight per can to let recipes in grams use it."
+      add={{ label: 'New unit', onClick: () => setEdit({}) }}
+    >
+      <h2 className="group-title">Your units</h2>
+      <div className="list">
+        {units.map((u) => (
+          <ChevronRow
+            key={u}
+            title={u}
+            sub={unitUse(ctx, u) ? `Used ${plural(unitUse(ctx, u), 'time')}` : 'Not used yet'}
+            onClick={() => setEdit({ old: u })}
+          />
+        ))}
+        {units.length === 0 && (
+          <p className="muted" style={{ margin: 0, padding: '18px 16px' }}>
+            None yet. Tap New unit to add one, for example can or jar.
+          </p>
+        )}
+      </div>
+      <h2 className="group-title">Built in</h2>
+      <p className="small muted" style={{ margin: '0 0 8px' }}>
+        These can't be changed: the app converts between them (1 kg = 1000 g).
+      </p>
+      <div className="list">
+        {UNITS.map((u) => (
+          <div key={u} className="row-between" style={{ padding: '12px 16px' }}>
+            <span className="bold">{u}</span>
+            <span className="small muted">{BUILT_IN_HINT[u]}</span>
+          </div>
+        ))}
+      </div>
+      {edit && (
+        <NameEditor
+          title={edit.old ? 'Edit unit' : 'New unit'}
+          initial={edit.old}
+          hint={edit.old ? undefined : 'One word, as it reads after a number: "2 cans" is written can.'}
+          existing={edit.old ? [] : units}
+          guard={
+            edit.old && unitUse(ctx, edit.old)
+              ? `Used ${plural(unitUse(ctx, edit.old), 'time')} in your items, lists, recipes or history, so it can't be renamed or deleted.`
+              : null
+          }
+          saveLabel={undefined}
+          onSave={async (n) =>
+            edit.old
+              ? !!(await run(
+                  'renameUnit',
+                  { from: edit.old, to: n },
+                  { toast: `Renamed to ${n.toLowerCase()}` },
+                ))
+              : !!(await run('addUnit', { name: n }, { toast: `${n.toLowerCase()} added` }))
+          }
+          onDelete={
+            edit.old
+              ? async () => !!(await run('deleteUnit', { name: edit.old! }, { toast: `${edit.old} deleted` }))
               : undefined
           }
           onClose={() => setEdit(null)}

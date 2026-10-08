@@ -7,7 +7,7 @@ import { defineAction, type Ctx } from './types';
 import { O, type Op } from '../ops';
 import { plural } from '../format';
 import { budgetFileName, usageFileName } from '../files';
-import { memberSchema, type PurchaseLine } from '../schemas';
+import { MEASURE_UNITS, UNITS, memberSchema, type PurchaseLine } from '../schemas';
 
 const name = z.string().trim().min(1, 'needs a name');
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
@@ -444,5 +444,87 @@ export const joinAsMember = defineAction({
       lines: [],
       ops: [O.household.set('members', next)],
     };
+  },
+});
+
+// ---------- units (the household's own counting units: can, jar, pack…) ----------
+/** How many records use a unit: items, shopping entries, recipe ingredients, purchase lines, usage. */
+export function unitUse(ctx: Pick<Ctx, 'snap'>, unit: string) {
+  const s = ctx.snap;
+  let n = s.items.items.filter((i) => i.unit === unit || i.lastPrice?.per === unit).length;
+  n += s.shopping.items.filter((x) => x.unit === unit).length;
+  for (const r of s.recipes.recipes) n += r.ingredients.filter((g) => g.unit === unit).length;
+  for (const b of Object.values(s.budgets))
+    for (const p of b.purchases) n += p.lines.filter((l) => l.unit === unit).length;
+  for (const u of Object.values(s.usage)) n += u.usage.filter((e) => e.unit === unit).length;
+  return n;
+}
+
+const unitName = z
+  .string()
+  .trim()
+  .min(1, 'needs a name')
+  .max(20, 'is too long (20 letters at most)')
+  .transform((s) => s.toLowerCase());
+const RESERVED = [...UNITS, ...MEASURE_UNITS, 'piece', 'pieces', 'kilo', 'gram', 'litre', 'liter'];
+
+function unitProblem(ctx: Ctx, n: string, except?: string): string | null {
+  if (RESERVED.includes(n)) return `${n} is already one of the built-in units.`;
+  if (ctx.snap.household.units.some((u) => u !== except && same(u, n)))
+    return `${n} is already in your units.`;
+  return null;
+}
+
+export const addUnit = defineAction({
+  name: 'addUnit',
+  input: z.object({ name: unitName }),
+  plan(ctx, { name }) {
+    const problem = unitProblem(ctx, name);
+    if (problem) return { title: `New unit: ${name}`, lines: [], ops: [], blocked: problem };
+    return {
+      title: `New unit: ${name}`,
+      lines: ['Counted one at a time, like pcs'],
+      ops: [O.household.listAdd('units', name)],
+    };
+  },
+});
+
+export const renameUnit = defineAction({
+  name: 'renameUnit',
+  input: z.object({ from: z.string(), to: unitName }),
+  plan(ctx, { from, to }) {
+    if (from === to) return { title: 'Rename unit', lines: [], ops: [], blocked: 'Type a new name.' };
+    const n = unitUse(ctx, from);
+    if (n)
+      return {
+        title: 'Rename unit',
+        lines: [],
+        ops: [],
+        blocked: `${from} is used ${plural(n, 'time')} in your items, lists, recipes or history, so it can't be renamed. Add a new unit instead.`,
+      };
+    const problem = unitProblem(ctx, to, from);
+    if (problem) return { title: 'Rename unit', lines: [], ops: [], blocked: problem };
+    const i = ctx.snap.household.units.indexOf(from);
+    return {
+      title: `Rename ${from} to ${to}`,
+      lines: [],
+      ops: [O.household.listRemove('units', from), O.household.listAdd('units', to, i)],
+    };
+  },
+});
+
+export const deleteUnit = defineAction({
+  name: 'deleteUnit',
+  input: z.object({ name: z.string() }),
+  plan(ctx, { name }) {
+    const n = unitUse(ctx, name);
+    if (n)
+      return {
+        title: `Delete ${name}`,
+        lines: [],
+        ops: [],
+        blocked: `${name} is used ${plural(n, 'time')} in your items, lists, recipes or history. Change those to another unit first.`,
+      };
+    return { title: `Delete ${name}`, lines: [], ops: [O.household.listRemove('units', name)] };
   },
 });
