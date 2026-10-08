@@ -16,6 +16,7 @@ import { GeminiError, geminiKey, geminiMessage } from '../../ai/gemini';
 import { compressPhoto, type CompressedPhoto } from '../../ai/image';
 import { readReceipt, receiptToDraft } from '../../ai/receipt';
 import { answerToRecipe, importRecipe } from '../../ai/recipe';
+import { deleteVideo, uploadVideo, type UploadedVideo } from '../../ai/video';
 import { Pseudonymiser } from '../../ai/privacy';
 import type { Op } from '../../domain/ops';
 import type { Recipe } from '../../domain/schemas';
@@ -47,6 +48,24 @@ interface Msg {
 
 const MAX_KEPT = 50;
 const URL_RE = /https:\/\/[^\s<>"']+/i;
+/** Sites that only show posts to their own app or logged-in visitors: nothing can read them. */
+const CLOSED_SITES = /^(?:[a-z0-9-]+\.)*(instagram\.com|tiktok\.com|facebook\.com|fb\.watch|threads\.net)$/i;
+const SITE_NAME: Record<string, string> = {
+  'instagram.com': 'Instagram',
+  'tiktok.com': 'TikTok',
+  'facebook.com': 'Facebook',
+  'fb.watch': 'Facebook',
+  'threads.net': 'Threads',
+};
+/** "Instagram" for an Instagram link, null for links that can be read. */
+function closedSite(url: string): string | null {
+  try {
+    const m = new URL(url).hostname.match(CLOSED_SITES);
+    return m ? (SITE_NAME[m[1].toLowerCase()] ?? 'That site') : null;
+  } catch {
+    return null;
+  }
+}
 const uid = () => crypto.randomUUID();
 
 function loadChat(): Msg[] {
@@ -118,6 +137,7 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
   const abort = useRef<AbortController | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const camera = useRef<HTMLInputElement>(null);
+  const videoPick = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const speech = useSpeech(prefs.ui().voiceLang, setInput);
@@ -244,6 +264,18 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
         const card = receiptCard(ctx, draft);
         receipts.current.set(card.id, { draft, photos: shots });
         push({ role: 'assistant', text: receiptSummaryText(draft), cards: [card] });
+      } else if (!textImport && URL_RE.test(text) && closedSite(text.match(URL_RE)![0])) {
+        // ---- a reel or post: no app can read those, so don't spend a Gemini request on it ----
+        const site = closedSite(text.match(URL_RE)![0])!;
+        push({ role: 'user', text });
+        push({
+          role: 'assistant',
+          text: `${site} doesn't let other apps open its posts or videos, so I can't read that link. Two ways round it: copy the caption (that's usually where the recipe is, sometimes in the first comment) and paste it here, or record the screen with sound while the video plays and send me the recording.`,
+          links: [
+            { label: 'Paste recipe text', to: '#paste-recipe' },
+            { label: 'Send a screen recording', to: '#pick-video' },
+          ],
+        });
       } else if (textImport || URL_RE.test(text)) {
         // ---- recipe import ----
         const url = textImport ? undefined : text.match(URL_RE)![0].replace(/[).,]+$/, '');
@@ -278,7 +310,10 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
-      if (URL_RE.test(text) && !(e instanceof GeminiError && (e.kind === 'no-key' || e.kind === 'rate'))) {
+      if (
+        URL_RE.test(text) &&
+        !(e instanceof GeminiError && (e.kind === 'no-key' || e.kind === 'rate' || e.kind === 'busy'))
+      ) {
         push({
           role: 'assistant',
           text: `${geminiMessage(e)} You can paste the recipe text instead.`,
@@ -292,8 +327,48 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
     }
   };
 
+  /** A recipe video (e.g. a screen recording of a reel, with sound) → recipe card. */
+  const importVideo = async (file: File) => {
+    if (thinking || !me || !snap) return;
+    push({ role: 'user', text: `Recipe video (${Math.max(1, Math.round(file.size / 1e6))} MB)` });
+    if (!geminiKey()) {
+      failure(new GeminiError('no-key', 'Add your Gemini key in Settings › This phone first.'));
+      return;
+    }
+    const ac = new AbortController();
+    abort.current = ac;
+    let video: UploadedVideo | undefined;
+    try {
+      const ctx = await buildCtx(store, me, { viaAssistant: true });
+      setThinking('Uploading the video…');
+      video = await uploadVideo(file, { signal: ac.signal, onProgress: setThinking });
+      setThinking('Watching the video and writing clear steps…');
+      const answer = await importRecipe(
+        { video },
+        ctx.snap.items.items,
+        ctx.snap.household.recipeCategories,
+        ac.signal,
+      );
+      const draft = answerToRecipe(answer, ctx.snap.items.items, ctx.snap.household.recipeCategories);
+      push({
+        role: 'assistant',
+        text: 'I watched the video and wrote the recipe as short, clear steps. Videos often skip amounts, so check them, then Apply to add it, or Edit to change anything first.',
+        cards: [recipeCard(ctx, draft)],
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      failure(e);
+    } finally {
+      if (video) void deleteVideo(video);
+      setThinking(null);
+      abort.current = null;
+    }
+  };
+
   const addPhotos = async (files: FileList | null) => {
     if (!files?.length) return;
+    const vid = Array.from(files).find((f) => f.type.startsWith('video/'));
+    if (vid) return void importVideo(vid);
     setPreparing(true);
     try {
       const out: CompressedPhoto[] = [];
@@ -384,6 +459,10 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
   };
 
   const go = (l: Link) => {
+    if (l.to === '#pick-video') {
+      videoPick.current?.click();
+      return;
+    }
     if (l.to === '#paste-recipe') {
       setTextImport(true);
       inputRef.current?.focus();
@@ -505,6 +584,14 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
             >
               Import a recipe from a link
             </button>
+            <button
+              type="button"
+              className="sugg"
+              disabled={!!thinking}
+              onClick={() => videoPick.current?.click()}
+            >
+              Recipe from a video
+            </button>
             {chips.map((c) => (
               <button
                 key={c}
@@ -601,6 +688,12 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
               onPaste={(e) => {
                 // the input is one line: catch a pasted list before its line breaks are lost
                 const pasted = e.clipboardData.getData('text');
+                // recipe text: keep its line breaks ("200 g flour" and "2 eggs" must stay apart)
+                if (textImport && pasted.includes('\n')) {
+                  e.preventDefault();
+                  void send(pasted);
+                  return;
+                }
                 if (!textImport && !photos.length && looksLikeList(pasted)) {
                   e.preventDefault();
                   void send(pasted);
@@ -627,9 +720,21 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
             onChange={(e) => void addPhotos(e.target.files).then(() => (e.target.value = ''))}
           />
           <input
+            ref={videoPick}
+            type="file"
+            accept="video/*"
+            className="sr-only"
+            tabIndex={-1}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (f) void importVideo(f);
+            }}
+          />
+          <input
             ref={gallery}
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             multiple
             className="sr-only"
             tabIndex={-1}

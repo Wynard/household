@@ -71,6 +71,12 @@ banned by lint. Images and links are never rendered from AI output. Recipe sourc
 - Web-page text, receipt text and stored data are passed to Gemini inside delimited blocks marked as untrusted data, with an instruction
   never to follow instructions inside them. The Assistant only has read tools and proposal tools: nothing changes until a person taps
   Apply, and it has no way to send data to an arbitrary address.
+- Recipe videos (for example a screen recording of a reel) are uploaded to Gemini's Files API with the phone's own key, under a
+  neutral name, and deleted as soon as the recipe is read (Google deletes uploads after 48 hours in any case). Videos can't be
+  re-encoded in the browser, so a video filmed with the camera may carry its location; screen recordings don't. The video is
+  treated as untrusted data like a web page.
+- Links to Instagram, TikTok, Facebook and Threads are never sent to Gemini: those sites can't be read by other apps, so the
+  Assistant asks for the caption text or a screen recording instead.
 - On the Gemini free tier, Google may use submitted data to improve its products. Settings explains this.
 
 ## Reporting

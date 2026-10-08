@@ -3,11 +3,11 @@
 // validated again with zod. Errors become plain-language GeminiErrors.
 import type { z } from 'zod';
 import { prefs } from '../app/prefs';
-import { DEFAULT_GEMINI_MODEL, GEMINI_BASE } from './config';
+import { DEFAULT_GEMINI_MODEL, FALLBACK_GEMINI_MODEL, GEMINI_BASE } from './config';
 import { UNTRUSTED_RULE } from './privacy';
 
 export type GeminiErrorKind =
-  'no-key' | 'rate' | 'key' | 'model' | 'network' | 'blocked' | 'bad-json' | 'too-big' | 'other';
+  'no-key' | 'rate' | 'busy' | 'key' | 'model' | 'network' | 'blocked' | 'bad-json' | 'too-big' | 'other';
 
 export class GeminiError extends Error {
   constructor(
@@ -24,6 +24,7 @@ export class GeminiError extends Error {
 export const MESSAGES: Record<GeminiErrorKind, string> = {
   'no-key': 'Add your Gemini key in Settings › This phone first.',
   rate: "Gemini's free limit was reached, try again in a minute.",
+  busy: "Gemini is very busy right now (that's on Google's side, not your key). Try again in a minute.",
   key: "Gemini didn't accept the key on this phone. Check it in Settings › This phone.",
   model: "The Gemini model set on this phone isn't available. Check the model name in Settings › This phone.",
   network: "Couldn't reach Gemini. Check your connection.",
@@ -36,6 +37,7 @@ export const MESSAGES: Record<GeminiErrorKind, string> = {
 export type Part =
   | { text: string; thought?: boolean; thoughtSignature?: string }
   | { inlineData: { mimeType: string; data: string } }
+  | { fileData: { mimeType: string; fileUri: string } }
   | { functionCall: { name: string; args?: Record<string, unknown>; id?: string }; thoughtSignature?: string }
   | { functionResponse: { name: string; response: Record<string, unknown>; id?: string } };
 
@@ -73,9 +75,63 @@ export function setTransport(t: typeof transport) {
   transport = t;
 }
 
+/** Waits between retries; for tests the wait can be skipped. */
+export let pause = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(t);
+      reject(new DOMException('Aborted', 'AbortError'));
+    });
+  });
+export function setPause(p: typeof pause) {
+  pause = p;
+}
+
+const RETRY_MS = [1500, 4000];
+
+/**
+ * "High demand" (503 and friends) is temporary: retry twice with a short wait,
+ * then try the lighter model once, which is usually less busy. Thought
+ * signatures belong to the model that made them, so they are dropped for it.
+ */
 export async function generate(
   req: GenerateRequest,
   opts: { signal?: AbortSignal } = {},
+): Promise<GenerateResult> {
+  const primary = geminiModel();
+  for (let i = 0; ; i++) {
+    try {
+      return await generateWith(primary, req, opts);
+    } catch (e) {
+      if (!(e instanceof GeminiError && e.kind === 'busy')) throw e;
+      if (i >= RETRY_MS.length) break;
+      await pause(RETRY_MS[i], opts.signal);
+    }
+  }
+  if (primary === FALLBACK_GEMINI_MODEL) throw new GeminiError('busy', MESSAGES.busy);
+  const contents = req.contents.map((c) => ({
+    ...c,
+    parts: c.parts.map((p) => {
+      if (!('thoughtSignature' in p)) return p;
+      const { thoughtSignature: _sig, ...rest } = p;
+      void _sig;
+      return rest as Part;
+    }),
+  }));
+  try {
+    return await generateWith(FALLBACK_GEMINI_MODEL, { ...req, contents }, opts);
+  } catch (e) {
+    if (e instanceof DOMException) throw e;
+    // the fallback is a bonus: report the original problem
+    throw new GeminiError('busy', MESSAGES.busy);
+  }
+}
+
+async function generateWith(
+  model: string,
+  req: GenerateRequest,
+  opts: { signal?: AbortSignal },
 ): Promise<GenerateResult> {
   const key = geminiKey();
   if (!key) throw new GeminiError('no-key', MESSAGES['no-key']);
@@ -89,7 +145,7 @@ export async function generate(
   };
   let res: Response;
   try {
-    res = await transport(`${GEMINI_BASE}/models/${encodeURIComponent(geminiModel())}:generateContent`, {
+    res = await transport(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify(body),
@@ -108,6 +164,8 @@ export async function generate(
       /* not json */
     }
     if (res.status === 429) throw new GeminiError('rate', MESSAGES.rate);
+    if ([500, 502, 503, 504].includes(res.status) || /high demand|overloaded|unavailable/i.test(detail))
+      throw new GeminiError('busy', MESSAGES.busy);
     if (res.status === 401 || res.status === 403 || /api key/i.test(detail))
       throw new GeminiError('key', MESSAGES.key);
     if (res.status === 404) throw new GeminiError('model', MESSAGES.model);
