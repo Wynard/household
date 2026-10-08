@@ -312,7 +312,7 @@ function itemRow(i: Item) {
     place: i.place,
     category: i.category,
     subcategory: i.subcategory,
-    status: stockStatus(i),
+    status: i.active ? stockStatus(i) : 'not watched',
     shownInStock: i.showInStock,
   };
 }

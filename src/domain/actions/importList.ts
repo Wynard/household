@@ -54,6 +54,7 @@ export const importList = defineAction({
       tracking: 'simple',
       status: r.have ? 'have' : 'out',
       addToListWhen: 'out',
+      active: true,
       unit: 'pcs',
       quantity: 0,
       aliases: [],

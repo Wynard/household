@@ -1,4 +1,4 @@
-// File format migrations (pure, idempotent). v1 -> v2: item tracking.
+// File format migrations (pure, idempotent). v1 -> v2: item tracking. v2 -> v3: items can be inactive.
 type Raw = Record<string, unknown>;
 
 /**
@@ -23,3 +23,10 @@ export function migrateV1toV2(raw: Raw, file: string): Raw {
   });
   return { ...raw, items, schemaVersion: 2 };
 }
+
+/**
+ * v3 adds item.active (default true, filled in by the schema). The version
+ * bump matters on its own: a v2 app would drop the field when saving, so it
+ * must refuse v3 files and ask for a reload instead.
+ */
+export const migrateV2toV3 = (raw: Raw): Raw => ({ ...raw, schemaVersion: 3 });

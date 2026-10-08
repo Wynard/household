@@ -20,9 +20,9 @@ const BADGE: Record<Exclude<StockStatus, 'have'>, { label: string; cls: string }
 };
 
 const STATUS_OPTIONS: [StockStatus, string][] = [
-  ['have', 'Have'],
-  ['low', 'Low'],
   ['out', 'Out'],
+  ['low', 'Low'],
+  ['have', 'Have'],
 ];
 
 /** Toast text after a stock change: only speak up when the shopping list changed. */
@@ -259,12 +259,13 @@ function StockRow({
           {item.name}
         </button>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+          {!item.active && <span className="tag tag-grey">Not watched</span>}
           {st !== 'have' && <span className={BADGE[st].cls}>{BADGE[st].label}</span>}
           {sub && <span className="small muted">{sub}</span>}
         </div>
       </div>
-      {simple ? (
-        <div className="status-seg" role="group" aria-label={`${item.name}: have, low or out`}>
+      {!item.active ? null : simple ? (
+        <div className="status-seg" role="group" aria-label={`${item.name}: out, low or have`}>
           {STATUS_OPTIONS.map(([v, l]) => (
             <button
               type="button"

@@ -31,6 +31,8 @@ export interface IngredientRow {
   simple?: boolean;
   /** a simple item marked Low: available, with a warning */
   low?: boolean;
+  /** linked to an inactive item: never checked */
+  inactive?: boolean;
 }
 
 export type StockMap = Map<string, number>;
@@ -52,6 +54,8 @@ export function checkIngredient(
   if (g.pantryStaple) return { ingredient: g, status: 'staple', need, unit: g.unit };
   const item = g.itemId ? items.get(g.itemId) : undefined;
   if (!item) return { ingredient: g, status: 'untracked', need, unit: g.unit };
+  if (item.active === false)
+    return { ingredient: g, item, status: 'untracked', need, unit: g.unit, inactive: true };
   if (item.tracking === 'simple') {
     // Have or Low counts as available (Low warns); Out is missing
     const status: IngredientStatus = item.status === 'out' ? 'missing' : 'have';

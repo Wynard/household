@@ -176,3 +176,68 @@ describe('insights: Ran out of', () => {
     });
   });
 });
+
+describe('inactive items (kept, never watched)', () => {
+  /** The seed with the given item switched off. */
+  function inactive(id: string) {
+    const ctx = makeCtx();
+    const it = find(ctx.snap, id);
+    const p = planAction(ACTIONS.upsertItem, ctx, { ...it, active: false });
+    expect(p.lines).toContain('Watched: true → false');
+    return applyToSnapshot(ctx.snap, p.ops).snap;
+  }
+
+  it('turning watching off takes the automatic list entry away and the item is never Low or Out', () => {
+    // toilet paper: Low, addToListWhen low, so it has an automatic entry
+    const ctx = makeCtx();
+    const withEntry = applyToSnapshot(
+      ctx.snap,
+      planAction(ACTIONS.setItemStatus, ctx, { itemId: 'toiletpaper', status: 'out' }).ops,
+    ).snap;
+    expect(onList(withEntry, 'toiletpaper').some((s) => s.source === 'low-stock')).toBe(true);
+    const it = find(withEntry, 'toiletpaper');
+    const off = applyToSnapshot(
+      withEntry,
+      planAction(ACTIONS.upsertItem, makeCtx(withEntry), { ...it, active: false }).ops,
+    ).snap;
+    expect(onList(off, 'toiletpaper').filter((s) => s.source === 'low-stock')).toHaveLength(0);
+    expect(stockStatus(find(off, 'toiletpaper'))).toBe('have');
+  });
+
+  it('stock changes are refused, and cooking and buying leave it alone', () => {
+    const snap = inactive('rice');
+    const ctx = makeCtx(snap);
+    expect(planAction(ACTIONS.adjustStock, ctx, { itemId: 'rice', delta: -100 }).blocked).toMatch(
+      /isn't watched/,
+    );
+    expect(planAction(ACTIONS.setItemStatus, ctx, { itemId: 'rice', status: 'out' }).blocked).toMatch(
+      /isn't watched/,
+    );
+    const bought = planAction(ACTIONS.addPurchase, ctx, {
+      store: 'Lidl',
+      date: '2026-10-07',
+      spentBy: 'ana@example.com',
+      lines: [
+        {
+          itemId: 'rice',
+          name: 'Rice',
+          quantity: 1,
+          unit: 'kg',
+          price: 8,
+          category: 'Pantry',
+          subcategory: 'Pasta & rice',
+          toStock: true,
+        },
+      ],
+    });
+    expect(find(applyToSnapshot(snap, bought.ops).snap, 'rice').quantity).toBe(find(snap, 'rice').quantity);
+  });
+
+  it('recipes treat it as not tracked', () => {
+    const snap = inactive('butter');
+    const r = snap.recipes.recipes.find((x) => x.id === 'omelette')!;
+    const row = availability(r, 2, snap.items.items).rows.find((x) => x.item?.id === 'butter')!;
+    expect(row).toMatchObject({ status: 'untracked', inactive: true });
+    expect(deductionsFor(r, 2, snap.items.items).map((d) => d.itemId)).not.toContain('butter');
+  });
+});

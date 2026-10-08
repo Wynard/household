@@ -19,6 +19,7 @@ const itemInput = z.object({
   tracking: z.enum(['simple', 'amount']).default('simple'),
   status: z.enum(['have', 'low', 'out']).default('have'),
   addToListWhen: z.enum(['low', 'out', 'never']).default('out'),
+  active: z.boolean().default(true),
   unit: unitSchema.default('pcs'),
   quantity: z.number().finite().min(0).default(0),
   lowThreshold: z.number().finite().min(0).optional(),
@@ -37,6 +38,7 @@ const FIELD_LABEL: Partial<Record<keyof Item, string>> = {
   lowThreshold: 'Warn below',
   addToListWhen: 'Add to the list when',
   showInStock: 'Show in Stock',
+  active: 'Watched',
 };
 
 /** Renaming an item also renames its open shopping-list entries. */
@@ -52,6 +54,7 @@ export const categoryExists = (ctx: Pick<Ctx, 'snap'>, category: string, subcate
   );
 
 function describeStock(it: Item): string {
+  if (!it.active) return 'Not watched';
   if (it.tracking === 'simple') return `${statusLabel(it.status)}, tracked as have / low / out`;
   return `${fmtQty(it.quantity, it.unit)} in the house${it.lowThreshold ? `, warn below ${fmtQty(it.lowThreshold, it.unit)}` : ''}`;
 }
@@ -86,6 +89,7 @@ export const upsertItem = defineAction({
       // amount items keep their status in step with the quantity
       status: amount ? statusForQuantity(input, quantity) : input.status,
       addToListWhen: input.addToListWhen,
+      active: input.active,
       unit: input.unit,
       quantity: amount ? quantity : 0,
       ...(amount && input.lowThreshold ? { lowThreshold: input.lowThreshold } : {}),

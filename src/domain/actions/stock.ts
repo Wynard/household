@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { defineAction, type Ctx } from './types';
 import { O, type Op } from '../ops';
-import { avgUnitPrice, isSimple, lowStockSync, stockStatus } from '../stock';
+import { avgUnitPrice, isSimple, isWatched, lowStockSync, stockStatus } from '../stock';
 import { qty as fmtQty, round3 } from '../format';
 import { toBase } from '../units';
 import { ensureYearOps } from '../budget';
@@ -92,7 +92,7 @@ export function stockChangeOps(
   const after = new Map<string, Item>();
   for (const c of changes) {
     const it = after.get(c.itemId) ?? findItem(ctx, c.itemId);
-    if (!it) continue;
+    if (!it || !isWatched(it)) continue; // inactive items are never changed by the app
     const before = stockStatus(it);
     if (isSimple(it)) {
       const target: ItemStatus | null = 'status' in c ? c.status : c.delta > 0 ? 'have' : null;
@@ -127,6 +127,13 @@ export const stockDeltaOps = (
   usage: { reason: UsageEntry['reason']; recipeId?: string } | null,
 ) => stockChangeOps(ctx, deltas, usage);
 
+const notWatched = (it: Item) => ({
+  title: `Change ${it.name}`,
+  lines: [],
+  ops: [],
+  blocked: `${it.name} isn't watched. Turn on "Watch this item" in its settings first.`,
+});
+
 export const adjustStock = defineAction({
   name: 'adjustStock',
   input: z.object({
@@ -141,6 +148,7 @@ export const adjustStock = defineAction({
     const it = findItem(ctx, input.itemId);
     if (!it)
       return { title: 'Change stock', lines: [], ops: [], blocked: "That item doesn't exist any more." };
+    if (!isWatched(it)) return notWatched(it);
     if (isSimple(it))
       return {
         title: `Change ${it.name}`,
@@ -168,6 +176,7 @@ export const setItemStatus = defineAction({
     const it = findItem(ctx, itemId);
     if (!it)
       return { title: 'Change stock', lines: [], ops: [], blocked: "That item doesn't exist any more." };
+    if (!isWatched(it)) return notWatched(it);
     if (!isSimple(it) && status !== 'out')
       return {
         title: `Change ${it.name}`,

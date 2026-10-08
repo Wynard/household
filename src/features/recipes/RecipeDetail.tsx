@@ -32,7 +32,11 @@ function statusText(r: IngredientRow): { text: string; tone: 'ok' | 'warn' | 'ba
       return { text: 'Pantry staple, not tracked', tone: 'muted' };
     case 'untracked':
       return {
-        text: r.item ? `Not tracked (can't compare with ${r.item.unit})` : 'Not tracked',
+        text: r.inactive
+          ? `Not tracked (${r.item!.name} isn't watched)`
+          : r.item
+            ? `Not tracked (can't compare with ${r.item.unit})`
+            : 'Not tracked',
         tone: 'muted',
       };
     case 'have':

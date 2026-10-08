@@ -5,10 +5,17 @@ import { STEP_BY_UNIT } from './defaults';
 
 export type StockStatus = 'have' | 'low' | 'out';
 
-type StatusFields = Pick<Item, 'tracking' | 'status' | 'quantity' | 'lowThreshold'>;
+type StatusFields = Pick<Item, 'tracking' | 'status' | 'quantity' | 'lowThreshold'> & { active?: boolean };
 
-/** Simple items: their stored status. Amount items: derived from quantity vs threshold. */
+/** Watched by the app (the default). Inactive items are kept but never watched. */
+export const isWatched = (it: { active?: boolean }) => it.active !== false;
+
+/**
+ * Simple items: their stored status. Amount items: derived from quantity vs
+ * threshold. Inactive items are never Low or Out.
+ */
 export function stockStatus(it: StatusFields): StockStatus {
+  if (!isWatched(it)) return 'have';
   if (it.tracking === 'simple') return it.status;
   if (it.quantity <= 0) return 'out';
   if (it.lowThreshold && it.quantity < it.lowThreshold) return 'low';
@@ -23,7 +30,7 @@ export const isSimple = (it: Pick<Item, 'tracking'>) => it.tracking === 'simple'
 
 /** Should the item be on the shopping list automatically right now (addToListWhen)? */
 export function wantsOnList(it: Item): boolean {
-  if (!it.showInStock || it.archived) return false;
+  if (!it.showInStock || it.archived || !isWatched(it)) return false;
   const st = stockStatus(it);
   if (it.addToListWhen === 'low') return st !== 'have';
   if (it.addToListWhen === 'out') return st === 'out';

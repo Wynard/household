@@ -78,6 +78,8 @@ export const itemSchema = z.object({
   lowThreshold: qty.optional(),
   /** when the item goes on the shopping list automatically */
   addToListWhen: z.enum(['low', 'out', 'never']).default('out'),
+  /** false = kept in the list, but never watched: no Low/Out, no shopping list, not checked by recipes */
+  active: z.boolean().default(true),
   gramsPerPiece: z.number().positive().optional(),
   aliases: z.array(z.string()),
   lastPrice: z.object({ amount: money, per: unitSchema, date: isoDate, store: z.string() }).optional(),
@@ -269,7 +271,7 @@ export const usagePayload = z.object({
 export type UsageYear = z.infer<typeof usagePayload>;
 
 // ---------- file envelope ----------
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const envelope = z.object({
   schemaVersion: z.number().int(),
   updatedAt: isoDateTime,

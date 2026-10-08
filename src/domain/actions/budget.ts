@@ -155,6 +155,7 @@ export const addPurchase = defineAction({
           tracking: 'simple',
           status: 'out',
           addToListWhen: 'out',
+          active: true,
           unit: line.unit,
           quantity: 0,
           aliases: l.rawText && normalise(l.rawText) !== normalise(line.name) ? [l.rawText] : [],
@@ -167,7 +168,9 @@ export const addPurchase = defineAction({
       if (itemId) {
         const it = after.get(itemId) ?? ctx.snap.items.items.find((i) => i.id === itemId)!;
         let next = it;
-        if (l.toStock && it.tracking === 'simple') {
+        if (l.toStock && it.active === false) {
+          // not watched: the purchase is recorded, stock stays as it is
+        } else if (l.toStock && it.tracking === 'simple') {
           if (it.status !== 'have') {
             ops.push(O.item.patch(it.id, { status: 'have' }));
             stockLines.push(`Stock: ${it.name} → Have, ${it.place}`);

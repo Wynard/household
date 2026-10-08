@@ -69,8 +69,8 @@ describe('migration v1 -> v2', () => {
 
   it('runs automatically when a v1 file is read, and only bumps other files', () => {
     const parsed = parseFile('items', structuredClone(v1Items));
-    expect(parsed.schemaVersion).toBe(2);
-    expect(parsed.items[0]).toMatchObject({ tracking: 'amount', quantity: 1000 });
+    expect(parsed.schemaVersion).toBe(3); // v1 -> v2 -> v3
+    expect(parsed.items[0]).toMatchObject({ tracking: 'amount', quantity: 1000, active: true });
     expect(migrateV1toV2({ schemaVersion: 1, entries: [] }, 'plan')).toEqual({
       schemaVersion: 2,
       entries: [],

@@ -5,7 +5,7 @@ import { unitSchema, type Item } from '../schemas';
 import { mergeIntoList, mergeToast } from '../shopping';
 import { plural, qty as fmtQty, round3 } from '../format';
 import { convert } from '../units';
-import { isSimple, lowStockSync } from '../stock';
+import { isSimple, isWatched, lowStockSync } from '../stock';
 import { statusLabel } from './stock';
 
 export const addToShoppingList = defineAction({
@@ -137,7 +137,7 @@ export const stockFromShopping = defineAction({
     const after = new Map<string, Item>();
     for (const l of input.lines) {
       const it = after.get(l.itemId) ?? ctx.snap.items.items.find((i) => i.id === l.itemId);
-      if (!it) continue;
+      if (!it || !isWatched(it)) continue;
       if (isSimple(it)) {
         // simple items: bought means "Have", whatever the amount
         if (it.status !== 'have') {

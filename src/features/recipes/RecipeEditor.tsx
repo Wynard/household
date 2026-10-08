@@ -332,7 +332,7 @@ export function RecipeEditor({
                       <IconClose size={18} />
                     </button>
                   </div>
-                  {item && item.tracking === 'simple' && !keptSimple.has(item.id) && (
+                  {item && item.tracking === 'simple' && item.active && !keptSimple.has(item.id) && (
                     <div className="track-ask stack" style={{ gap: 8 }}>
                       {tracking?.itemId === item.id ? (
                         <>

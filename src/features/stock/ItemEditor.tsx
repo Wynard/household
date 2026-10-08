@@ -18,6 +18,7 @@ type Draft = {
   tracking: Item['tracking'];
   status: ItemStatus;
   addToListWhen: Item['addToListWhen'];
+  active: boolean;
   unit: Unit;
   quantity: string;
   low: string;
@@ -36,6 +37,7 @@ function toDraft(it: Item | undefined, place: string, preset?: Partial<Draft>): 
       tracking: 'simple',
       status: 'have',
       addToListWhen: 'out',
+      active: true,
       unit: 'pcs',
       quantity: '',
       low: '',
@@ -52,6 +54,7 @@ function toDraft(it: Item | undefined, place: string, preset?: Partial<Draft>): 
     tracking: it.tracking,
     status: it.status,
     addToListWhen: it.addToListWhen,
+    active: it.active,
     unit: it.unit,
     quantity: it.tracking === 'amount' ? num(it.quantity, 3) : '',
     low: it.lowThreshold ? num(it.lowThreshold, 3) : '',
@@ -102,7 +105,7 @@ export function ItemEditor({
     return others.filter((i) => normalise(i.name).includes(n) || n.includes(normalise(i.name))).slice(0, 3);
   }, [d.name, others]);
 
-  const amount = d.tracking === 'amount';
+  const amount = d.active && d.tracking === 'amount';
   const qty = amount ? parseDecimal(d.quantity) : 0;
   const low = amount && d.low.trim() ? parseDecimal(d.low) : 0;
   const gpp = d.gramsPerPiece.trim() ? parseDecimal(d.gramsPerPiece) : 0;
@@ -141,6 +144,7 @@ export function ItemEditor({
         tracking: d.tracking,
         status: d.status,
         addToListWhen: d.addToListWhen,
+        active: d.active,
         unit: d.unit,
         quantity: qty,
         lowThreshold: low > 0 ? low : undefined,
@@ -233,85 +237,105 @@ export function ItemEditor({
           </div>
         </div>
 
-        <div className="stack-sm">
-          <span className="bold" style={{ fontSize: 15 }}>
-            Tracking
-          </span>
-          <Seg
-            label="Tracking"
-            value={d.tracking}
-            onChange={(t) =>
-              // switching to amounts asks for the current quantity (the field starts empty)
-              upd(t === 'amount' ? { tracking: t, quantity: '' } : { tracking: t })
-            }
-            options={[
-              ['simple', 'Have / low / out'],
-              ['amount', 'Exact amount'],
-            ]}
-          />
-        </div>
+        <Switch
+          on={d.active}
+          onToggle={() => upd({ active: !d.active })}
+          title="Watch this item"
+          sub={
+            d.active
+              ? 'Shows when it is low or out and goes on the shopping list.'
+              : 'Kept in your items, but the app never tracks it: no low or out, no shopping list, recipes skip it.'
+          }
+        />
 
-        {!amount && (
-          <div className="stack-sm">
-            <span className="bold" style={{ fontSize: 15 }}>
-              In the house now
-            </span>
-            <Seg
-              label="In the house now"
-              value={d.status}
-              onChange={(st) => upd({ status: st })}
-              options={[
-                ['have', 'Have'],
-                ['low', 'Low'],
-                ['out', 'Out'],
-              ]}
-            />
-          </div>
-        )}
-
-        {amount && (
+        {d.active && (
           <>
             <div className="stack-sm">
               <span className="bold" style={{ fontSize: 15 }}>
-                Unit
+                Tracking
               </span>
-              <div className="unit-grid" role="group" aria-label="Unit">
-                {UNITS.map((u) => (
-                  <button key={u} type="button" aria-pressed={d.unit === u} onClick={() => upd({ unit: u })}>
-                    {u}
-                  </button>
-                ))}
-              </div>
+              <Seg
+                label="Tracking"
+                value={d.tracking}
+                onChange={(t) =>
+                  // switching to amounts asks for the current quantity (the field starts empty)
+                  upd(t === 'amount' ? { tracking: t, quantity: '' } : { tracking: t })
+                }
+                options={[
+                  ['simple', 'Have / low / out'],
+                  ['amount', 'Exact amount'],
+                ]}
+              />
             </div>
 
-            <div className="grid-2" style={{ gap: 10 }}>
-              <Field label="In the house now">
-                <DecimalInput
-                  value={d.quantity}
-                  placeholder={`How much, in ${d.unit}`}
-                  autoFocus={!!existing && existing.tracking === 'simple'}
-                  onChange={(e) => upd({ quantity: e.target.value })}
+            {!amount && (
+              <div className="stack-sm">
+                <span className="bold" style={{ fontSize: 15 }}>
+                  In the house now
+                </span>
+                <Seg
+                  label="In the house now"
+                  value={d.status}
+                  onChange={(st) => upd({ status: st })}
+                  options={[
+                    ['out', 'Out'],
+                    ['low', 'Low'],
+                    ['have', 'Have'],
+                  ]}
                 />
-              </Field>
-              <Field label="Warn me below">
-                <DecimalInput
-                  value={d.low}
-                  placeholder="No warning"
-                  onChange={(e) => upd({ low: e.target.value })}
-                />
-              </Field>
-            </div>
-            {d.unit === 'pcs' && (
-              <Field
-                label="Weight per piece, in grams (optional)"
-                hint="Lets recipes in grams use pieces, e.g. one egg is about 60 g."
-              >
-                <DecimalInput
-                  value={d.gramsPerPiece}
-                  placeholder="e.g. 60"
-                  onChange={(e) => upd({ gramsPerPiece: e.target.value })}
-                />
-              </Field>
+              </div>
+            )}
+
+            {amount && (
+              <>
+                <div className="stack-sm">
+                  <span className="bold" style={{ fontSize: 15 }}>
+                    Unit
+                  </span>
+                  <div className="unit-grid" role="group" aria-label="Unit">
+                    {UNITS.map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        aria-pressed={d.unit === u}
+                        onClick={() => upd({ unit: u })}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid-2" style={{ gap: 10 }}>
+                  <Field label="In the house now">
+                    <DecimalInput
+                      value={d.quantity}
+                      placeholder={`How much, in ${d.unit}`}
+                      autoFocus={!!existing && existing.tracking === 'simple'}
+                      onChange={(e) => upd({ quantity: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Warn me below">
+                    <DecimalInput
+                      value={d.low}
+                      placeholder="No warning"
+                      onChange={(e) => upd({ low: e.target.value })}
+                    />
+                  </Field>
+                </div>
+                {d.unit === 'pcs' && (
+                  <Field
+                    label="Weight per piece, in grams (optional)"
+                    hint="Lets recipes in grams use pieces, e.g. one egg is about 60 g."
+                  >
+                    <DecimalInput
+                      value={d.gramsPerPiece}
+                      placeholder="e.g. 60"
+                      onChange={(e) => upd({ gramsPerPiece: e.target.value })}
+                    />
+                  </Field>
+                )}
+              </>
             )}
           </>
         )}
@@ -326,7 +350,7 @@ export function ItemEditor({
               : 'Hidden from Stock. Still used for budget categories, recipes and receipts.'
           }
         />
-        {d.showInStock && (
+        {d.showInStock && d.active && (
           <div className="stack-sm">
             <span className="bold" style={{ fontSize: 15 }}>
               Add to the shopping list when

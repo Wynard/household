@@ -42,7 +42,7 @@ type ItemSeed = [
   qty: number,
   unit: Unit,
   low: number,
-  extra?: Partial<Item>,
+  extra?: Partial<Omit<Item, 'active'>>,
 ];
 const D = 'Dairy & eggs',
   M = 'Meat & fish',
@@ -155,6 +155,7 @@ function buildItems(): Item[] {
       categorySource: 'manual' as const,
       place,
       showInStock: true,
+      active: true,
       aliases: [] as string[],
     };
     if (AMOUNT_ITEMS.has(id))
