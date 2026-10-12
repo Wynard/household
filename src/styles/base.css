@@ -174,9 +174,10 @@ img {
   transition: background var(--dur-fast);
 }
 .tab[aria-current='page'] {
-  color: var(--tab-active-fg);
+  color: var(--tab-active-label);
 }
 .tab[aria-current='page'] .pill {
+  color: var(--tab-active-fg);
   background: var(--tab-active-bg);
 }
 

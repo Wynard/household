@@ -1,7 +1,7 @@
 /*
  * Design tokens: "Bon" (private DESIGN.md). The app looks like the receipts it
  * reads: paper and ink, dashed tear lines, money in a receipt typeface, a
- * highlighter for what matters and a red stamp for what's missing.
+ * orange highlighter for what matters and a red stamp for what's missing.
  *
  * Every color, font, size, radius and shadow lives here. Components use only
  * these custom properties (scripts/check-tokens test enforces it).
@@ -20,22 +20,24 @@
   --line: #bdbdb8;
   --primary: #111111;
   --on-primary: #ffffff;
-  --highlight: #ffe14d;
+  --highlight: #d15f2e;
   --on-highlight: #111111;
   --danger: #c8211a;
   --on-danger: #ffffff;
   --danger-soft: #fbe3e1;
   /* red text (errors, "over the target"): #d63b31 is only 3.7:1 on the dark surface, so dark text uses a lighter red */
   --danger-text: #c8211a;
+  /* the icon sits on the orange pill; the label under it sits on the tab bar */
   --tab-active-fg: #111111;
-  --tab-active-bg: #ffe14d;
+  --tab-active-bg: #d15f2e;
+  --tab-active-label: #111111;
   --fab-bg: #111111;
-  --fab-fg: #ffe14d;
+  --fab-fg: #d15f2e;
   --nav-bg: #ffffff;
   --overlay: rgba(17, 17, 17, 0.5);
   --focus: #111111;
   /* Undo on a toast: yellow on the dark toast; ink on the light toast of the dark theme (yellow would fail contrast there) */
-  --toast-action: #ffe14d;
+  --toast-action: #d15f2e;
   /* the fixed dark outline on yellow fills (selected chips, consumption bars, person B) */
   --outline-on-highlight: #111111;
   /* receipt photo placeholder and the dark veil over photo buttons */
@@ -152,13 +154,14 @@
     --danger: #d63b31;
     --danger-soft: #3a1e1c;
     --danger-text: #f06a60;
-    --tab-active-fg: #ffe14d;
-    --tab-active-bg: #3a3520;
-    --fab-bg: #ffe14d;
+    --tab-active-fg: #111111;
+    --tab-active-bg: #d15f2e;
+    --tab-active-label: #f2f2ee;
+    --fab-bg: #d15f2e;
     --fab-fg: #111111;
     --nav-bg: #181818;
     --overlay: rgba(0, 0, 0, 0.6);
-    --focus: #ffe14d;
+    --focus: #d15f2e;
     --toast-action: #111111;
   }
 }
@@ -175,13 +178,14 @@
   --danger: #d63b31;
   --danger-soft: #3a1e1c;
   --danger-text: #f06a60;
-  --tab-active-fg: #ffe14d;
-  --tab-active-bg: #3a3520;
-  --fab-bg: #ffe14d;
+  --tab-active-fg: #111111;
+  --tab-active-bg: #d15f2e;
+  --tab-active-label: #f2f2ee;
+  --fab-bg: #d15f2e;
   --fab-fg: #111111;
   --nav-bg: #181818;
   --overlay: rgba(0, 0, 0, 0.6);
-  --focus: #ffe14d;
+  --focus: #d15f2e;
   --toast-action: #111111;
   color-scheme: dark;
 }

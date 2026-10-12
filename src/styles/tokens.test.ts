@@ -75,7 +75,8 @@ const PAIRS: [string, string, number][] = [
   ['--danger', '--surface', 3], // borders and fills
   ['--ink', '--danger-soft', 4.5],
   ['--tab-active-fg', '--tab-active-bg', 4.5],
-  ['--tab-active-fg', '--nav-bg', 4.5],
+  ['--tab-active-label', '--nav-bg', 4.5],
+  ['--highlight', '--surface', 3], // orange fills and chips against the paper
   ['--ink-muted', '--nav-bg', 4.5],
   ['--surface', '--ink', 4.5], // toast text
   ['--toast-action', '--ink', 4.5],
