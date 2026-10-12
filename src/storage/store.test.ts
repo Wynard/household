@@ -108,3 +108,79 @@ describe('live sync', () => {
     expect(qtyOf(qc.getQueryData<Loaded<ItemsFile>>(fileKey('items'))!.data, 'eggs')).toBe(12);
   });
 });
+
+describe('saving speed: per-file queues and combined writes', () => {
+  /** A store whose adapter writes take a while and can be released by hand. */
+  function slow() {
+    const s = setup();
+    const writes: string[] = [];
+    const gates: (() => void)[] = [];
+    const real = s.adapter.writeJson.bind(s.adapter);
+    s.adapter.writeJson = async (name, data, v) => {
+      writes.push(name);
+      if (name === 'items') await new Promise<void>((r) => gates.push(r));
+      return real(name, data, v);
+    };
+    const release = async () => {
+      while (gates.length) gates.shift()!();
+      await new Promise((r) => setTimeout(r, 0));
+    };
+    return { ...s, writes, release };
+  }
+
+  it('a budget save does not wait for stock changes still being written', async () => {
+    const { store, adapter, release } = slow();
+    await store.ensure('items');
+    await store.ensure('budget-2026');
+    const stock = store.commit([O.item.inc('eggs', 1)]);
+    const before = (await adapter.readJson<BudgetFile>('budget-2026')).data.adjustments.length;
+    await store.commit([
+      O.budget('budget-2026').upsertAdjustment({
+        id: 'adj-x',
+        date: '2026-10-07',
+        by: 'ana@example.com',
+        amount: -1,
+        reason: 'test',
+      }),
+    ]);
+    // the budget is saved while the items write is still waiting
+    expect((await adapter.readJson<BudgetFile>('budget-2026')).data.adjustments.length).toBe(before + 1);
+    await release();
+    await stock;
+  });
+
+  it('taps made while a file is being written go out together in one write, each with its own undo', async () => {
+    const { store, adapter, writes, release } = slow();
+    await store.ensure('items');
+    const first = store.commit([O.item.inc('eggs', 1)]);
+    await new Promise((r) => setTimeout(r, 0));
+    const more = [1, 2, 3, 4].map(() => store.commit([O.item.inc('eggs', 1)]));
+    // the screen already shows all five
+    expect(qtyOf(store.cached('items')!.data, 'eggs')).toBe(9);
+    await release();
+    await first;
+    await release();
+    const results = await Promise.all(more);
+    expect(writes.filter((w) => w === 'items')).toHaveLength(2);
+    expect(qtyOf((await adapter.readJson<ItemsFile>('items')).data, 'eggs')).toBe(9);
+    // undoing one tap takes away exactly one egg
+    const undo = store.commit(results[2].inverse);
+    await release();
+    await undo;
+    expect(qtyOf((await adapter.readJson<ItemsFile>('items')).data, 'eggs')).toBe(8);
+  });
+
+  it('a failed write rolls back only its own file', async () => {
+    const { store, adapter } = setup();
+    await store.ensure('items');
+    await store.ensure('shopping');
+    adapter.failNextWrite = 'shopping';
+    await expect(
+      store.commit([O.item.inc('eggs', 1), O.shop.remove(store.cached('shopping')!.data.items[0].id)]),
+    ).rejects.toThrow(/Couldn't save/);
+    expect(qtyOf((await adapter.readJson<ItemsFile>('items')).data, 'eggs')).toBe(5);
+    expect(store.cached('shopping')!.data.items).toHaveLength(
+      (await adapter.readJson<{ items: unknown[] }>('shopping')).data.items.length,
+    );
+  });
+});
