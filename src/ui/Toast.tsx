@@ -45,7 +45,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     clearTimeout(timer.current);
     if (!t) return;
     // errors with "Try again" stay until dismissed or retried
-    const ms = t.ms ?? (t.retry ? 0 : t.undo ? 6000 : 2800);
+    // longer messages (why something is blocked) stay long enough to read: about 60 ms a letter
+    const ms = t.ms ?? (t.retry ? 0 : Math.max(t.undo ? 6000 : 2800, t.text.length * 60));
     if (ms > 0) timer.current = setTimeout(() => setT(null), ms);
     return () => clearTimeout(timer.current);
   }, [t]);

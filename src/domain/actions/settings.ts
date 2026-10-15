@@ -208,13 +208,7 @@ export const deleteSubcategory = defineAction({
         ops: [],
         blocked: `Used by ${plural(use.items, 'item')} and ${plural(use.lines, 'purchase line')}. You can rename it, or move those first.`,
       };
-    if (c.subcategories.length <= 1)
-      return {
-        title: `Delete ${name}`,
-        lines: [],
-        ops: [],
-        blocked: 'A category needs at least one subcategory. Delete the category instead.',
-      };
+    // subcategories are optional: a category may end up with none
     return {
       title: `Delete ${category} › ${name}`,
       lines: [],

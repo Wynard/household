@@ -423,10 +423,11 @@ export function DoneScreen({ onDone }: { onDone: () => void }) {
         You're set up
       </h1>
       <div className="list">
-        {items.map(([t, s]) => (
+        {/* next steps, numbered: none of them is done yet */}
+        {items.map(([t, s], i) => (
           <div key={t} className="row" style={{ padding: '14px 16px', alignItems: 'flex-start', gap: 12 }}>
-            <span className="ing-mark ok" aria-hidden>
-              <IconCheck />
+            <span className="step-num-sm" style={{ marginTop: 0 }} aria-hidden>
+              {i + 1}
             </span>
             <span className="stack" style={{ gap: 2 }}>
               <span className="bold">{t}</span>

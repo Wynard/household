@@ -3,11 +3,12 @@
 // resume a home-screen app for days. So when the app comes back to the
 // foreground (and every 30 minutes while it's open) it compares its build with
 // version.json:
-// - away for more than a minute and nothing being saved: reload right away
+// - away for more than a minute, nothing being saved and no form open: reload right away
 //   (it feels like a fresh start, and the screen you were on is kept);
 // - otherwise: a banner offers the reload, so nothing being typed is lost.
 import { useEffect, useState } from 'react';
 import type { DataStore } from '../storage/store';
+import { anyOverlayOpenNow } from '../ui/overlay';
 
 const CHECK_MS = 30 * 60_000;
 const AWAY_MS = 60_000;
@@ -41,7 +42,8 @@ export function useAppUpdate(store: DataStore): boolean {
     const check = async (resumed: boolean) => {
       const build = await latestBuild();
       if (!build || build === __BUILD_ID__) return;
-      if (resumed && !store.saving) void reloadApp();
+      // never reload under an open form (a sheet or editor) or an unsaved change
+      if (resumed && !store.saving && !anyOverlayOpenNow()) void reloadApp();
       else setReady(true);
     };
     const onVisibility = () => {

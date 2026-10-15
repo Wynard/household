@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type ReactNode, type InputHTMLAttributes } from 'react';
 import { IconReceipt, IconSearch } from './icons';
+import { useSnapshot } from '../app/data';
 import { useNavigate } from 'react-router-dom';
 import { IconBack, IconGear, IconMinus, IconNext, IconPlus } from './icons';
 
@@ -91,9 +92,7 @@ export function Choice<T extends string>({
 }) {
   return (
     <div className="stack-sm">
-      <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-        {label}
-      </span>
+      <span className="field-label">{label}</span>
       <div className="grid-2" role="group" aria-label={label}>
         {options.map(([v, l]) => (
           <button
@@ -298,8 +297,27 @@ export function useStableId(prefix: string) {
   return `${prefix}-${useId().replace(/:/g, '')}`;
 }
 
-/** Skeleton rows (they pulse gently, still under reduced motion), with the text for screen readers. */
+/**
+ * Skeleton rows while data loads (they pulse gently, still under reduced
+ * motion). If loading failed, it says so with Try again instead of waiting forever.
+ */
 export function Loading({ text = 'Loading…' }: { text?: string }) {
+  const { error, refetch } = useSnapshot();
+  if (error)
+    return (
+      <div className="error-banner stack-sm" role="alert" style={{ marginTop: 'var(--space-6)' }}>
+        <span className="bold">Couldn't load your data.</span>
+        <span>{error.message}</span>
+        <button
+          type="button"
+          className="btn btn-outline btn-sm"
+          style={{ alignSelf: 'flex-start' }}
+          onClick={refetch}
+        >
+          Try again
+        </button>
+      </div>
+    );
   return (
     <div role="status" style={{ marginTop: 'var(--space-6)' }}>
       <span className="sr-only">{text}</span>

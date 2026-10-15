@@ -568,9 +568,7 @@ function FilterSheet({
         </button>
       </div>
       <div className="stack-sm" style={{ gap: 8 }}>
-        <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-          Person
-        </span>
+        <span className="field-label">Person</span>
         <div className="wrap">
           <Chip pressed={!f.person} onClick={() => onSet({ person: undefined })}>
             Both of us
@@ -583,9 +581,7 @@ function FilterSheet({
         </div>
       </div>
       <div className="stack-sm" style={{ gap: 8 }}>
-        <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-          Category
-        </span>
+        <span className="field-label">Category</span>
         <div className="wrap">
           <Chip pressed={!f.category} onClick={() => onSet({ category: undefined, subcategory: undefined })}>
             All
@@ -603,9 +599,7 @@ function FilterSheet({
       </div>
       {cat && (
         <div className="stack-sm" style={{ gap: 8 }}>
-          <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-            Subcategory in {cat.name}
-          </span>
+          <span className="field-label">Subcategory in {cat.name}</span>
           <div className="wrap">
             <Chip pressed={!f.subcategory} onClick={() => onSet({ subcategory: undefined })}>
               All
@@ -620,9 +614,7 @@ function FilterSheet({
       )}
       {view === 'spend' && (
         <div className="stack-sm" style={{ gap: 8 }}>
-          <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-            Store
-          </span>
+          <span className="field-label">Store</span>
           <div className="wrap">
             <Chip pressed={!f.store} onClick={() => onSet({ store: undefined })}>
               All stores

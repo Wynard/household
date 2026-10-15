@@ -11,10 +11,12 @@ export function CategoryPicker({
   onPick,
   onClose,
   initialCategory,
+  z = 50,
 }: {
   onPick: (category: string, subcategory: string) => void;
   onClose: () => void;
   initialCategory?: string;
+  z?: number;
 }) {
   const { snap } = useSnapshot();
   const { run } = useRun();
@@ -52,7 +54,7 @@ export function CategoryPicker({
   };
 
   return (
-    <Sheet onClose={onClose} z={50} labelledBy="cp-title">
+    <Sheet onClose={onClose} z={z} labelledBy="cp-title">
       {node && <BackButton label="All categories" onClick={() => setCat(null)} />}
       <div className="stack-sm" style={{ gap: 2 }}>
         <h2 className="h-sheet" id="cp-title">

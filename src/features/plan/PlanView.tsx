@@ -97,12 +97,7 @@ export function PlanView() {
             {weekLabel(mon)}
           </span>
           {mon !== weekStart(today) && (
-            <button
-              type="button"
-              className="link-btn small"
-              style={{ minHeight: 28 }}
-              onClick={() => setMon(weekStart(today))}
-            >
+            <button type="button" className="link-btn small" onClick={() => setMon(weekStart(today))}>
               Back to this week
             </button>
           )}

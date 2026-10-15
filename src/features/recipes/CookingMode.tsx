@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FullScreen } from '../../ui/Sheet';
+import { DiscardBar, FullScreen, useGuardedClose } from '../../ui/Sheet';
 import { BackButton, DecimalInput } from '../../ui/controls';
 import { IconCheck, IconClose, IconTimer } from '../../ui/icons';
 import { useRun, useSnapshot } from '../../app/data';
@@ -90,6 +90,8 @@ export function CookingMode({
   const [done, setDone] = useState<Set<number>>(new Set());
   const [finishing, setFinishing] = useState(!!startAtFinish);
   const [timers, setTimers] = useState<Record<string, Timer>>({});
+  // leaving with progress or a running timer asks first
+  const exit = useGuardedClose(done.size > 0 || Object.values(timers).some((t) => t.endsAt), onClose);
   const [, tick] = useState(0);
   const refs = useRef<(HTMLDivElement | null)[]>([]);
   const { snap } = useSnapshot();
@@ -203,10 +205,21 @@ export function CookingMode({
         <span className="bold muted" style={{ fontSize: 'var(--fs-secondary)' }}>
           {recipe.title}
         </span>
-        <button type="button" className="icon-btn" aria-label="Exit cooking mode" onClick={onClose}>
+        <button type="button" className="icon-btn" aria-label="Exit cooking mode" onClick={exit.requestClose}>
           <IconClose />
         </button>
       </div>
+      {exit.confirming && (
+        <div style={{ padding: '0 var(--pad-screen) var(--space-2)' }}>
+          <DiscardBar
+            text="Stop cooking? Steps done and timers are lost."
+            keepLabel="Keep cooking"
+            discardLabel="Stop"
+            onKeep={exit.keep}
+            onDiscard={exit.discard}
+          />
+        </div>
+      )}
       <div className="full-body" style={{ padding: '8px 16px 20px', gap: 10 }}>
         <p className="muted" style={{ margin: '0 4px 4px', fontSize: 'var(--fs-secondary)' }}>
           {done.size} of {steps.length} steps done. Serves {servings}.
@@ -399,7 +412,8 @@ export function FinishCooking({
   return (
     <FullScreen z={36} rim={false} bg="var(--surface)" label="Finish cooking">
       <div className="full-body" style={{ padding: '16px 24px' }}>
-        {onBack && <BackButton label="Back to the steps" onClick={onBack} />}
+        {/* always a way out: back to the steps, or cancel when opened from the plan */}
+        <BackButton label={onBack ? 'Back to the steps' : 'Cancel'} onClick={onBack ?? onClose} />
         <h2 className="display" style={{ margin: 0, fontSize: 'var(--fs-sheet-title)', lineHeight: 1.15 }}>
           Enjoy! Take these out of stock?
         </h2>

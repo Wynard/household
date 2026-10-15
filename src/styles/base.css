@@ -590,7 +590,7 @@ mark {
   min-height: var(--chip-h);
   padding: 0 14px;
   border-radius: var(--radius-chip);
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   background: var(--surface);
   color: var(--ink);
   font-size: var(--fs-chip);
@@ -669,12 +669,12 @@ mark {
   grid-auto-columns: minmax(0, 1fr);
   grid-auto-flow: column;
   background: var(--surface);
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   border-radius: var(--radius-control);
   padding: 2px;
 }
 .seg button {
-  min-height: var(--control-h);
+  min-height: var(--tap);
   min-width: var(--tap);
   border: 0;
   border-radius: var(--radius-control);
@@ -695,7 +695,7 @@ mark {
 .choice {
   min-height: var(--input-h);
   border-radius: var(--radius-button);
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   background: var(--surface);
   color: var(--ink);
   font-weight: var(--fw-bold);
@@ -708,13 +708,14 @@ mark {
 }
 .unit-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* wraps instead of squeezing, so own units (can, borcan) fit */
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
   gap: 6px;
 }
 .unit-grid button {
   min-height: var(--chip-h);
   border-radius: var(--radius-chip);
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   background: var(--surface);
   color: var(--ink);
   font-weight: var(--fw-bold);
@@ -792,7 +793,8 @@ mark {
   height: 30px;
   flex-shrink: 0;
   border-radius: var(--radius-round);
-  background: var(--line);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 var(--border-strong) var(--input-border);
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -804,13 +806,19 @@ mark {
   width: 24px;
   height: 24px;
   border-radius: var(--radius-round);
-  background: var(--surface);
+  background: var(--ink-muted);
 }
 [aria-pressed='true'] > .switch,
 [aria-checked='true'] > .switch,
 .switch[data-on='true'] {
   background: var(--primary);
+  box-shadow: none;
   justify-content: flex-end;
+}
+[aria-pressed='true'] > .switch::after,
+[aria-checked='true'] > .switch::after,
+.switch[data-on='true']::after {
+  background: var(--on-primary);
 }
 
 /* ---------- Forms ---------- */
@@ -824,12 +832,12 @@ mark {
 .input {
   min-height: var(--input-h);
   width: 100%;
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   border-radius: var(--radius-button);
   padding: 0 14px;
   font-size: var(--fs-body);
   font-weight: var(--fw-regular);
-  background: var(--surface);
+  background: var(--input-bg);
   color: var(--ink);
   min-width: 0;
 }
@@ -864,20 +872,20 @@ mark {
 .input-sm {
   min-height: var(--btn-h-sm);
   padding: 0 10px;
-  font-size: var(--fs-label);
+  font-size: max(var(--fs-input-min), var(--fs-label));
 }
 select.input {
-  font-size: var(--fs-label);
+  font-size: max(var(--fs-input-min), var(--fs-label));
 }
 .textarea {
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   border-radius: var(--radius-button);
   padding: 10px var(--space-3);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
   resize: vertical;
   font-family: inherit;
-  background: var(--surface);
+  background: var(--input-bg);
   color: var(--ink);
   width: 100%;
 }
@@ -1022,6 +1030,7 @@ input[type='search']::-webkit-search-cancel-button {
   font-size: var(--fs-label);
   text-decoration: underline;
   min-height: var(--tap);
+  min-width: var(--tap);
   padding: 0 var(--space-2);
 }
 .toast.error button {
@@ -1164,7 +1173,7 @@ input[type='search']::-webkit-search-cancel-button {
   font-size: var(--fs-item);
   line-height: var(--lh-item);
   color: var(--ink);
-  min-height: 28px;
+  min-height: var(--tap);
 }
 .stock-row.is-inactive .stock-name {
   color: var(--ink-muted);
@@ -1174,7 +1183,7 @@ input[type='search']::-webkit-search-cancel-button {
   min-height: var(--input-h);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-button);
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   background: var(--surface);
   color: var(--ink);
   font-size: var(--fs-label);
@@ -1258,12 +1267,12 @@ input[type='search']::-webkit-search-cancel-button {
   grid-auto-columns: minmax(var(--tap), auto);
   flex-shrink: 0;
   background: var(--surface);
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   border-radius: var(--radius-control);
   padding: 2px;
 }
 .status-seg button {
-  min-height: calc(var(--control-h) - 6px);
+  min-height: var(--tap);
   min-width: var(--tap);
   padding: 0 var(--space-2);
   border: 0;
@@ -1505,7 +1514,7 @@ input[type='search']::-webkit-search-cancel-button {
   min-height: var(--chip-h);
   padding: 0 var(--space-3);
   border-radius: var(--radius-chip);
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   background: var(--surface-2);
   color: var(--ink);
   font-size: var(--fs-chip);
@@ -1805,11 +1814,11 @@ input[type='search']::-webkit-search-cancel-button {
   flex: 1;
   min-width: 0;
   height: var(--round-btn);
-  border: var(--border) solid var(--line);
+  border: var(--border) solid var(--input-border);
   border-radius: var(--radius-round);
   padding: 0 var(--space-4);
-  font-size: var(--fs-label);
-  background: var(--surface-2);
+  font-size: max(var(--fs-input-min), var(--fs-label));
+  background: var(--input-bg);
   color: var(--ink);
 }
 .photo-tray {
@@ -1890,4 +1899,91 @@ input[type='search']::-webkit-search-cancel-button {
   justify-content: space-between;
   gap: var(--space-6);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* "needs your attention" (no category, unsure receipt line, data changed): an orange edge, normal text */
+.notice {
+  border-left: var(--space-1) solid var(--highlight);
+  padding-left: var(--space-3);
+  color: var(--ink);
+}
+.notice-text {
+  color: var(--ink);
+  font-weight: var(--fw-bold);
+}
+.notice-text::before {
+  content: '!';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 6px;
+  border-radius: var(--radius-round);
+  background: var(--highlight);
+  color: var(--on-highlight);
+  font-size: smaller;
+}
+
+/* sheet main action pinned at the bottom (thumb reach), above the scrolling content */
+.sheet.has-foot {
+  padding-bottom: 0;
+}
+.sheet-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0 calc(-1 * var(--pad-screen));
+  padding: var(--space-3) var(--pad-screen) calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: var(--border) dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.sheet:not(.has-foot) .sheet-foot {
+  margin-bottom: calc(-28px - env(safe-area-inset-bottom));
+}
+.discard-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--fs-label);
+}
+
+/* one label style for every form field and option group */
+.field-label {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+}
+
+/* small labelled fields side by side (purchase lines: qty, unit, price) */
+.line-fields {
+  display: grid;
+  grid-template-columns: 4.5em 5.5em minmax(0, 1fr);
+  gap: 6px;
+}
+.mini-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mini-field > span {
+  font-size: var(--fs-caps);
+  font-weight: var(--fw-bold);
+  color: var(--ink-muted);
+}
+
+/* Assistant: take a photo or pick one (receipt or recipe) */
+.photo-choose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.photo-choose .field-label {
+  flex-basis: 100%;
 }

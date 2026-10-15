@@ -14,11 +14,7 @@ export const IMPORT_PROMPT =
   'Paste the link to a recipe page. I’ll read it, match the ingredients to your items and write clear steps, then you decide whether to save it.';
 
 export function badgeClass(a: Availability) {
-  return a.badge === 'ready'
-    ? 'badge tag-cobalt'
-    : a.badge === 'missing'
-      ? 'badge tag-red'
-      : 'badge tag-grey';
+  return a.badge === 'ready' ? 'badge tag-ink' : a.badge === 'missing' ? 'badge tag-red' : 'badge tag-grey';
 }
 
 export function recipeMeta(r: Recipe) {
@@ -96,26 +92,29 @@ export function RecipesScreen() {
   return (
     <>
       <PageHeader title="Recipes" />
-      <div className="grid-2" style={{ margin: '14px 0 12px' }}>
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          style={{ padding: '0 var(--space-2)' }}
-          onClick={() => assistant.open({ prompt: IMPORT_PROMPT })}
-        >
-          <IconLink />
-          Import from a link
-        </button>
-        <button
-          type="button"
-          className="btn btn-outline btn-block"
-          style={{ padding: '0 var(--space-2)' }}
-          onClick={() => setWriting(true)}
-        >
-          <IconPen />
-          Write a recipe
-        </button>
-      </div>
+      {/* adding recipes belongs to the list, not on top of the week plan */}
+      {view === 'list' && (
+        <div className="grid-2" style={{ margin: '14px 0 12px' }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            style={{ padding: '0 var(--space-2)' }}
+            onClick={() => assistant.open({ prompt: IMPORT_PROMPT })}
+          >
+            <IconLink />
+            Import from a link
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-block"
+            style={{ padding: '0 var(--space-2)' }}
+            onClick={() => setWriting(true)}
+          >
+            <IconPen />
+            Write a recipe
+          </button>
+        </div>
+      )}
       <div style={{ marginBottom: 16 }}>
         <Seg
           label="Recipes or week plan"

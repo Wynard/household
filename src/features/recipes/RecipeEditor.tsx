@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FullScreen } from '../../ui/Sheet';
+import { DiscardBar, FullScreen, useGuardedClose } from '../../ui/Sheet';
 import { DecimalInput, DeleteButton, Field } from '../../ui/controls';
 import { IconClose } from '../../ui/icons';
 import { useRun, useSnapshot } from '../../app/data';
@@ -79,6 +79,12 @@ export function RecipeEditor({
   const toast = useToast();
   const existing = recipeId ? snap?.recipes.recipes.find((r) => r.id === recipeId) : undefined;
   const [d, setD] = useState<Draft>(() => toDraft(existing ?? initial));
+  // closing with changes (or an imported recipe not saved yet) asks first
+  const [start] = useState(d);
+  const guard = useGuardedClose(
+    JSON.stringify(d) !== JSON.stringify(start) || (!existing && !!initial),
+    onClose,
+  );
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Item | null>(null);
   const [amount, setAmount] = useState('');
@@ -205,7 +211,12 @@ export function RecipeEditor({
     <FullScreen z={45} label={existing ? 'Edit recipe' : 'New recipe'}>
       <div className="full-head">
         <h1 className="h1-sm">{heading ?? (existing ? 'Edit recipe' : 'New recipe')}</h1>
-        <button type="button" className="icon-btn" aria-label="Close without saving" onClick={onClose}>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Close without saving"
+          onClick={guard.requestClose}
+        >
           <IconClose />
         </button>
       </div>
@@ -239,9 +250,7 @@ export function RecipeEditor({
             </Field>
           </div>
           <div className="stack-sm">
-            <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-              Categories
-            </span>
+            <span className="field-label">Categories</span>
             <div className="wrap">
               {cats.map((c) => {
                 const on = d.categories.includes(c);
@@ -595,6 +604,7 @@ export function RecipeEditor({
         )}
       </div>
       <div className="full-foot">
+        {guard.confirming && <DiscardBar onKeep={guard.keep} onDiscard={guard.discard} />}
         {problem && (tried || d.title.trim()) && <span className="problem">{problem}</span>}
         <button
           type="button"
@@ -608,6 +618,7 @@ export function RecipeEditor({
 
       {creatingItem !== null && (
         <ItemEditor
+          z={52}
           preset={{ name: creatingItem }}
           onClose={() => setCreatingItem(null)}
           onSaved={(id) => {

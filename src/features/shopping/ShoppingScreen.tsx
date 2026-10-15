@@ -172,12 +172,10 @@ export function ShoppingScreen() {
           <div className="list">{sec.items.map(row)}</div>
         </section>
       ))}
-      {toBuy.length === 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <p className="muted" style={{ margin: 0, padding: '20px 16px' }}>
-            The list is empty. Add something above, or it fills up when stock runs low.
-          </p>
-        </div>
+      {toBuy.length === 0 && cart.length > 0 && (
+        <p className="muted" style={{ margin: 'var(--space-4) 0 0' }}>
+          Everything on the list is in the cart.
+        </p>
       )}
 
       {cart.length > 0 && (
@@ -211,7 +209,9 @@ export function ShoppingScreen() {
           </button>
         </>
       )}
-      {toBuy.length === 0 && cart.length === 0 && <EmptyState>Nothing on the list.</EmptyState>}
+      {toBuy.length === 0 && cart.length === 0 && (
+        <EmptyState>The list is empty. Add something above, or it fills up when stock runs low.</EmptyState>
+      )}
 
       {editing && <EditEntrySheet entry={editing} onClose={() => setEditing(null)} />}
       {buying && <BuySheet entries={cart} items={itemsById} onClose={() => setBuying(false)} />}
@@ -232,14 +232,12 @@ function EditEntrySheet({ entry, onClose }: { entry: ShoppingItem; onClose: () =
       <Field label="Name">
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <div className="grid-2" style={{ gap: 10, gridTemplateColumns: '110px minmax(0,1fr)' }}>
+      <div className="stack" style={{ gap: 10 }}>
         <Field label="Amount">
           <DecimalInput placeholder="Any" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <div className="stack-sm">
-          <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-            Unit
-          </span>
+          <span className="field-label">Unit</span>
           <div className="unit-grid" role="group" aria-label="Unit">
             {allUnits(snap?.household).map((u) => (
               <button
@@ -311,7 +309,9 @@ function BuySheet({
       ) as Record<string, { on: boolean; amount: string; unit: Unit }>,
   );
   const chosen = linked.filter((s) => rows[s.id].on);
-  const bad = chosen.some((s) => !(parseDecimal(rows[s.id].amount) > 0));
+  const simple = (s: ShoppingItem) => items.get(s.itemId!)!.tracking === 'simple';
+  // only amount items need an amount; simple ones are marked Have whatever was bought
+  const bad = chosen.some((s) => !simple(s) && !(parseDecimal(rows[s.id].amount) > 0));
   return (
     <Sheet onClose={onClose} title="Add what you bought to stock" labelledBy="buy-title">
       {linked.length > 0 ? (
@@ -323,31 +323,36 @@ function BuySheet({
               <div key={s.id} className="row" style={{ padding: '10px 12px', gap: 10 }}>
                 <button
                   type="button"
-                  className={`checkbox${r.on ? ' on' : ''}`}
+                  className="icon-btn"
                   aria-pressed={r.on}
                   aria-label={`Add ${it.name} to stock`}
                   onClick={() => setRows((x) => ({ ...x, [s.id]: { ...r, on: !r.on } }))}
-                  style={{ width: 26, height: 26, padding: 0 }}
-                />
+                >
+                  <span className={`checkbox${r.on ? ' on' : ''}`} aria-hidden />
+                </button>
                 <span className="grow stack" style={{ gap: 0 }}>
                   <span className="bold">{it.name}</span>
                   <span className="small muted">
-                    {fmtQty(it.quantity, it.unit)} now, {it.place.toLowerCase()}
+                    {it.tracking === 'simple'
+                      ? `Will be marked Have, ${it.place.toLowerCase()}`
+                      : `${fmtQty(it.quantity, it.unit)} now, ${it.place.toLowerCase()}`}
                   </span>
                 </span>
-                <label className="row" style={{ gap: 6 }}>
-                  <span className="sr-only">How much {it.name}</span>
-                  <DecimalInput
-                    className="input input-sm"
-                    style={{ width: 76, textAlign: 'right' }}
-                    disabled={!r.on}
-                    value={r.amount}
-                    onChange={(e) => setRows((x) => ({ ...x, [s.id]: { ...r, amount: e.target.value } }))}
-                  />
-                  <span className="small muted" style={{ width: 28 }}>
-                    {r.unit}
-                  </span>
-                </label>
+                {it.tracking !== 'simple' && (
+                  <label className="row" style={{ gap: 6 }}>
+                    <span className="sr-only">How much {it.name}</span>
+                    <DecimalInput
+                      className="input input-sm"
+                      style={{ width: 76, textAlign: 'right' }}
+                      disabled={!r.on}
+                      value={r.amount}
+                      onChange={(e) => setRows((x) => ({ ...x, [s.id]: { ...r, amount: e.target.value } }))}
+                    />
+                    <span className="small muted" style={{ minWidth: 28 }}>
+                      {r.unit}
+                    </span>
+                  </label>
+                )}
               </div>
             );
           })}
@@ -373,7 +378,7 @@ function BuySheet({
               lines: chosen.map((s) => ({
                 shoppingId: s.id,
                 itemId: s.itemId!,
-                amount: parseDecimal(rows[s.id].amount),
+                amount: simple(s) ? 1 : parseDecimal(rows[s.id].amount),
                 unit: rows[s.id].unit,
               })),
               alsoClear: [

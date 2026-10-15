@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRun, useSnapshot } from '../../app/data';
 import { useSession } from '../../auth/session';
-import { DecimalInput, Field, Loading } from '../../ui/controls';
+import { DecimalInput, Field, Loading, DeleteButton } from '../../ui/controls';
 import { personDot } from '../../ui/person';
 import { Sheet } from '../../ui/Sheet';
 import { money, num, parseDecimal } from '../../domain/format';
@@ -122,18 +122,19 @@ export function DeviceSettings({ children }: { children?: React.ReactNode }) {
             <span className="small muted">
               Share it only with your partner, as an Editor. Never use "anyone with the link".
             </span>
-            <button type="button" className="btn btn-ghost btn-md" onClick={session.leaveHousehold}>
-              Join a different household
-            </button>
+            {/* two taps: rejoining needs the folder picked again */}
+            <DeleteButton
+              label="Join a different household"
+              className="btn btn-outline btn-md btn-block"
+              onDelete={() => session.leaveHousehold?.()}
+            />
           </div>
         </>
       )}
       <h2 className="group-title">Account</h2>
       <div className="card card-pad stack" style={{ gap: 10 }}>
         <span className="small muted">Signed in as {session.email}</span>
-        <button type="button" className="btn btn-danger btn-md" onClick={session.signOut}>
-          Sign out of this phone
-        </button>
+        <DeleteButton label="Sign out of this phone" onDelete={session.signOut} />
         <span className="small muted">
           Signing out removes the household link, your Gemini key and the assistant conversation from this
           phone.

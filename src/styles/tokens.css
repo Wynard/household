@@ -18,6 +18,9 @@
   --ink: #111111;
   --ink-muted: #3d3d3d;
   --line: #bdbdb8;
+  /* form fields: a stronger edge than cards, so it is clear where to type (>= 3:1) */
+  --input-border: #85857f;
+  --input-bg: #ffffff;
   --primary: #111111;
   --on-primary: #ffffff;
   --highlight: #d15f2e;
@@ -54,27 +57,29 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   /* ---- type scale (DESIGN.md 4) ---- */
-  --fs-title: 34px;
+  --fs-title: 28px;
   --lh-title: 1.1;
-  --fs-header: 22px;
+  --fs-header: 19px;
   --lh-header: 1.15;
-  --fs-sheet-title: 24px;
-  --fs-item: 19px;
+  --fs-sheet-title: 21px;
+  --fs-item: 17px;
   --lh-item: 1.35;
-  --fs-body: 19px;
+  --fs-body: 16px;
   --lh-body: 1.45;
-  --fs-secondary: 16px;
+  --fs-secondary: 14px;
   --lh-secondary: 1.4;
-  --fs-label: 17px;
-  --fs-chip: 16px;
-  --fs-caps: 15px;
+  --fs-label: 15px;
+  --fs-chip: 14px;
+  --fs-caps: 12px;
   --ls-caps: 0.1em;
-  --fs-tab: 12px;
-  --fs-money-xl: 44px;
-  --fs-money-l: 26px;
-  --fs-cook-step: 26px;
-  --fs-cook-other: 21px;
-  --fs-timer: 30px;
+  --fs-tab: 11px;
+  /* text fields never below this: iOS Safari zooms into smaller fields */
+  --fs-input-min: 16px;
+  --fs-money-xl: 38px;
+  --fs-money-l: 22px;
+  --fs-cook-step: 24px;
+  --fs-cook-other: 19px;
+  --fs-timer: 28px;
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
@@ -90,7 +95,7 @@
   --space-8: 32px;
   --pad-screen: 18px;
   --gap-cards: 12px;
-  --gap-header: 22px;
+  --gap-header: 18px;
 
   /* ---- radii ---- */
   --radius-card: 4px;
@@ -109,18 +114,18 @@
 
   /* ---- sizes (minimums) ---- */
   --tap: 44px;
-  --row-min: 68px;
-  --btn-h: 56px;
-  --btn-h-2: 52px;
+  --row-min: 60px;
+  --btn-h: 52px;
+  --btn-h-2: 48px;
   --btn-h-sm: 44px;
-  --input-h: 52px;
+  --input-h: 48px;
   --chip-h: 44px;
   --control-h: 40px;
   --step-btn: 40px;
   --step-val-min: 54px;
   --tab-min: 56px;
   --tab-icon: 23px;
-  --fab-size: 58px;
+  --fab-size: 56px;
   --fab-icon: 26px;
   --round-btn: 48px;
   --gear: 44px;
@@ -149,6 +154,8 @@
     --ink: #f2f2ee;
     --ink-muted: #b5b5ae;
     --line: #3a3a36;
+    --input-border: #85857e;
+    --input-bg: #262626;
     --primary: #f2f2ee;
     --on-primary: #111111;
     --danger: #d63b31;
@@ -173,6 +180,8 @@
   --ink: #f2f2ee;
   --ink-muted: #b5b5ae;
   --line: #3a3a36;
+  --input-border: #85857e;
+  --input-bg: #262626;
   --primary: #f2f2ee;
   --on-primary: #111111;
   --danger: #d63b31;

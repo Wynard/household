@@ -1,7 +1,8 @@
 import { allUnits, isCountUnit } from '../../domain/units';
 import { useMemo, useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
-import { DecimalInput, DeleteButton, Field, Seg, Switch } from '../../ui/controls';
+import { DecimalInput, DeleteButton, Field, SearchField, Seg, Switch } from '../../ui/controls';
+import { StatusControl } from '../../ui/StatusControl';
 import { useRun, useSnapshot } from '../../app/data';
 import { useToast } from '../../ui/Toast';
 import { categorise, normalise } from '../../domain/categorise';
@@ -70,11 +71,14 @@ export function ItemEditor({
   onClose,
   onSaved,
   preset,
+  z = 38,
 }: {
   itemId?: string | null;
   onClose: () => void;
   onSaved?: (id: string) => void;
   preset?: Partial<Draft>;
+  /** stacking order; opened from the recipe editor it must sit above it */
+  z?: number;
 }) {
   const { snap } = useSnapshot();
   const { run } = useRun();
@@ -82,6 +86,9 @@ export function ItemEditor({
   const [editingId, setEditingId] = useState<string | null>(itemId ?? null);
   const existing = snap?.items.items.find((i) => i.id === editingId);
   const [d, setD] = useState<Draft>(() => toDraft(existing, snap?.household.places[0] ?? 'Pantry', preset));
+  // what the form started as: closing with changes asks first
+  const [start, setStart] = useState(d);
+  const dirty = JSON.stringify(d) !== JSON.stringify(start);
   const [picking, setPicking] = useState(false);
   const [merging, setMerging] = useState(false);
   const upd = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
@@ -160,11 +167,31 @@ export function ItemEditor({
     }
   };
 
-  const catBg = category ? 'var(--surface-2)' : d.name.trim() ? 'var(--highlight)' : 'var(--surface-2)';
+  // no match yet: an orange edge says it needs a choice (the box keeps readable text)
+  const catNeeds = !category && !!d.name.trim();
 
   return (
     <>
-      <Sheet onClose={onClose} z={38} labelledBy="ie-title" title={existing ? 'Edit item' : 'New item'}>
+      <Sheet
+        onClose={onClose}
+        z={z}
+        dirty={dirty}
+        labelledBy="ie-title"
+        title={existing ? 'Edit item' : 'New item'}
+        footer={
+          <>
+            {problem && d.name.trim() && <span className="small notice-text">{problem}</span>}
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              disabled={!!problem}
+              onClick={() => void save()}
+            >
+              {problem && !d.name.trim() ? 'Add a name to save' : existing ? 'Save changes' : 'Add item'}
+            </button>
+          </>
+        }
+      >
         <Field label="Name">
           <input
             className="input"
@@ -176,7 +203,7 @@ export function ItemEditor({
         </Field>
         {!existing && similar.length > 0 && (
           <div className="stack-sm">
-            <span className="small muted">Already in your items:</span>
+            <span className="small muted">Already in your items. Tap one to edit it instead:</span>
             <div className="wrap">
               {similar.map((s) => (
                 <button
@@ -185,7 +212,9 @@ export function ItemEditor({
                   className="chip chip-sm chip-soft"
                   onClick={() => {
                     setEditingId(s.id);
-                    setD(toDraft(s, s.place));
+                    const next = toDraft(s, s.place);
+                    setD(next);
+                    setStart(next);
                   }}
                 >
                   {s.name}, {s.place.toLowerCase()}
@@ -195,7 +224,10 @@ export function ItemEditor({
           </div>
         )}
 
-        <div className="row-between" style={{ padding: '10px 12px', borderRadius: 12, background: catBg }}>
+        <div
+          className={`row-between${catNeeds ? ' notice' : ''}`}
+          style={{ padding: '10px 12px', borderRadius: 'var(--radius-card)', background: 'var(--surface-2)' }}
+        >
           <span className="stack" style={{ gap: 0 }}>
             <span className="tiny muted">
               {category && !d.manual ? (
@@ -206,7 +238,7 @@ export function ItemEditor({
                 'Category'
               )}
             </span>
-            <span className="bold" style={{ color: category ? 'var(--ink)' : 'var(--ink)' }}>
+            <span className="bold">
               {category
                 ? catLabel(category, subcategory ?? undefined)
                 : d.name.trim()
@@ -220,9 +252,7 @@ export function ItemEditor({
         </div>
 
         <div className="stack-sm">
-          <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-            Where it's kept
-          </span>
+          <span className="field-label">Where it's kept</span>
           <div className="wrap" role="group" aria-label="Where it's kept">
             {places.map((p) => (
               <button
@@ -252,9 +282,7 @@ export function ItemEditor({
         {d.active && (
           <>
             <div className="stack-sm">
-              <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-                Tracking
-              </span>
+              <span className="field-label">Tracking</span>
               <Seg
                 label="Tracking"
                 value={d.tracking}
@@ -271,18 +299,11 @@ export function ItemEditor({
 
             {!amount && (
               <div className="stack-sm">
-                <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-                  In the house now
-                </span>
-                <Seg
-                  label="In the house now"
+                <span className="field-label">In the house now</span>
+                <StatusControl
+                  name={d.name.trim() || 'this item'}
                   value={d.status}
                   onChange={(st) => upd({ status: st })}
-                  options={[
-                    ['out', 'Out'],
-                    ['low', 'Low'],
-                    ['have', 'Have'],
-                  ]}
                 />
               </div>
             )}
@@ -290,9 +311,7 @@ export function ItemEditor({
             {amount && (
               <>
                 <div className="stack-sm">
-                  <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-                    Unit
-                  </span>
+                  <span className="field-label">Unit</span>
                   <div className="unit-grid" role="group" aria-label="Unit">
                     {allUnits(snap?.household).map((u) => (
                       <button
@@ -357,9 +376,7 @@ export function ItemEditor({
         />
         {d.showInStock && d.active && (
           <div className="stack-sm">
-            <span className="bold" style={{ fontSize: 'var(--fs-secondary)' }}>
-              Add to the shopping list when
-            </span>
+            <span className="field-label">Add to the shopping list when</span>
             <Seg
               small
               label="Add to the shopping list when"
@@ -373,16 +390,6 @@ export function ItemEditor({
             />
           </div>
         )}
-
-        {problem && d.name.trim() && <span className="problem">{problem}</span>}
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          disabled={!!problem}
-          onClick={() => void save()}
-        >
-          {problem && !d.name.trim() ? 'Add a name to save' : existing ? 'Save changes' : 'Add item'}
-        </button>
 
         {existing && (
           <>
@@ -408,6 +415,7 @@ export function ItemEditor({
 
       {picking && (
         <CategoryPicker
+          z={z + 12}
           onClose={() => setPicking(false)}
           onPick={(c, s) => {
             upd({ category: c, subcategory: s, manual: true });
@@ -418,6 +426,7 @@ export function ItemEditor({
       {merging && existing && (
         <MergeSheet
           keep={existing}
+          z={z + 7}
           candidates={others}
           onClose={() => setMerging(false)}
           onMerged={() => {
@@ -435,25 +444,37 @@ function MergeSheet({
   candidates,
   onClose,
   onMerged,
+  z,
 }: {
   keep: Item;
   candidates: Item[];
   onClose: () => void;
   onMerged: () => void;
+  z: number;
 }) {
   const { run } = useRun();
   const [picked, setPicked] = useState<string[]>([]);
+  const [q, setQ] = useState('');
   const sorted = useMemo(() => {
     const score = (i: Item) =>
       i.subcategory === keep.subcategory ? 0 : i.category === keep.category ? 1 : 2;
-    return candidates.slice().sort((a, b) => score(a) - score(b) || a.name.localeCompare(b.name));
-  }, [candidates, keep]);
+    const n = normalise(q);
+    return candidates
+      .filter((i) => picked.includes(i.id) || !n || normalise(`${i.name} ${i.aliases.join(' ')}`).includes(n))
+      .sort((a, b) => score(a) - score(b) || a.name.localeCompare(b.name));
+  }, [candidates, keep, q, picked]);
   return (
-    <Sheet onClose={onClose} z={45} title={`Merge into ${keep.name}`} labelledBy="merge-title">
+    <Sheet onClose={onClose} z={z} title={`Merge into ${keep.name}`} labelledBy="merge-title">
       <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-secondary)' }}>
         Pick the duplicates. Their amounts are added to {keep.name}, their names become spellings it
         recognises on receipts, and recipes and history point to {keep.name}.
       </p>
+      <SearchField
+        aria-label="Search items"
+        placeholder="Search items"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
       <div className="list" style={{ maxHeight: 360, overflowY: 'auto' }}>
         {sorted.map((i) => {
           const on = picked.includes(i.id);

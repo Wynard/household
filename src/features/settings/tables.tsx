@@ -108,7 +108,7 @@ export function CategoriesTable() {
           hint={
             use
               ? `${plural(use.items, 'item')} and ${plural(use.lines, 'purchase line')}. Renaming updates it everywhere.`
-              : 'It starts with one subcategory, General. Add more after.'
+              : 'Subcategories are optional. Add some after if you like.'
           }
           existing={tree.map((c) => c.name)}
           guard={
@@ -146,9 +146,7 @@ export function CategoriesTable() {
         guard={
           use && (use.items || use.lines)
             ? `Used by ${plural(use.items, 'item')} and ${plural(use.lines, 'purchase line')}. You can rename it, or move those first.`
-            : node && node.subcategories.length <= 1
-              ? 'A category needs at least one subcategory. Delete the category instead.'
-              : null
+            : null
         }
         onSave={async (n) =>
           !!(edit.old

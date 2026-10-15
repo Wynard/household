@@ -27,3 +27,6 @@ export function useAnyOverlayOpen(): boolean {
     () => count > 0,
   );
 }
+
+/** Right now, outside React: is any sheet or full-screen flow open? */
+export const anyOverlayOpenNow = () => count > 0;

@@ -68,6 +68,36 @@ function closedSite(url: string): string | null {
 }
 const uid = () => crypto.randomUUID();
 
+/**
+ * Kept in memory only (never saved): what was typed, attached photos and the
+ * scanned receipts behind pending cards survive closing and reopening the panel.
+ */
+const memory = {
+  input: '',
+  photos: [] as CompressedPhoto[],
+  receipts: new Map<string, { draft: PurchaseDraft; photos: CompressedPhoto[] }>(),
+};
+
+/** A card's form was saved (outside the panel): mark the stored card done. */
+function markCardSaved(msgId: string, cardId: string) {
+  try {
+    const list = JSON.parse(prefs.chatRaw() ?? '[]') as Msg[];
+    const next = list.map((m) =>
+      m.id !== msgId
+        ? m
+        : {
+            ...m,
+            cards: m.cards?.map((c) =>
+              c.id === cardId ? { ...c, status: 'cancelled' as const, note: 'Saved from the form.' } : c,
+            ),
+          },
+    );
+    prefs.setChatRaw(JSON.stringify(next));
+  } catch {
+    /* the chat is a convenience; nothing to lose */
+  }
+}
+
 function loadChat(): Msg[] {
   try {
     const raw = prefs.chatRaw();
@@ -100,12 +130,14 @@ function suggestions(key: string, otherName: string): string[] {
   return m[key] ?? m.stock;
 }
 
-type Editing =
+type CardRef = { msgId: string; cardId: string };
+type Editing = { ref: CardRef } & (
   | { kind: 'receipt'; card: Card; msgId: string; draft: PurchaseDraft; photos: CompressedPhoto[] }
   | { kind: 'purchase'; draft: PurchaseDraft }
   | { kind: 'contribution'; prefill: { amount?: number; by?: string; date?: string; note?: string } }
   | { kind: 'item'; itemId: string }
-  | { kind: 'recipe'; initial: Partial<Recipe> };
+  | { kind: 'recipe'; initial: Partial<Recipe> }
+);
 
 /** Lives inside the app shell; shows the panel and any form opened from a card's Edit. */
 export function AssistantHost() {
@@ -128,12 +160,25 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
   const { snap } = useSnapshot();
   const toast = useToast();
   const [msgs, setMsgs] = useState<Msg[]>(loadChat);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => memory.input);
   const [thinking, setThinking] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<CompressedPhoto[]>([]);
+  const [photos, setPhotos] = useState<CompressedPhoto[]>(() => memory.photos);
+  useEffect(() => {
+    memory.input = input;
+    memory.photos = photos;
+  }, [input, photos]);
+  // which photo is being picked: a receipt (attached, then sent) or a recipe (read right away)
+  const [chooser, setChooser] = useState<null | 'receipt' | 'recipe'>(null);
+  const purpose = useRef<'receipt' | 'recipe'>('receipt');
+  const [clearArmed, setClearArmed] = useState(false);
+  useEffect(() => {
+    if (!clearArmed) return;
+    const t = setTimeout(() => setClearArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [clearArmed]);
   const [preparing, setPreparing] = useState(false);
   const [textImport, setTextImport] = useState(false);
-  const receipts = useRef(new Map<string, { draft: PurchaseDraft; photos: CompressedPhoto[] }>());
+  const receipts = useRef(memory.receipts);
   const abort = useRef<AbortController | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -365,6 +410,44 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
     }
   };
 
+  /** Photos of a recipe (a cookbook page, a screenshot) -> recipe card. */
+  const importPhotoRecipe = async (shots: CompressedPhoto[]) => {
+    if (thinking || !me || !snap) return;
+    push({
+      role: 'user',
+      text: shots.length > 1 ? `Recipe, ${shots.length} photos` : 'Recipe photo',
+      photos: shots.length,
+    });
+    if (!geminiKey()) {
+      failure(new GeminiError('no-key', 'Add your Gemini key in Settings › This phone first.'));
+      return;
+    }
+    const ac = new AbortController();
+    abort.current = ac;
+    try {
+      const ctx = await buildCtx(store, me, { viaAssistant: true });
+      setThinking('Reading the recipe and writing clear steps…');
+      const answer = await importRecipe(
+        { images: shots.map((x) => x.base64) },
+        ctx.snap.items.items,
+        ctx.snap.household.recipeCategories,
+        ac.signal,
+      );
+      const draft = answerToRecipe(answer, ctx.snap.items.items, ctx.snap.household.recipeCategories);
+      push({
+        role: 'assistant',
+        text: 'I read the recipe from the photo and wrote the steps as short, clear actions. Check it, then Apply to add it, or Edit to change anything first.',
+        cards: [recipeCard(ctx, draft)],
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      failure(e);
+    } finally {
+      setThinking(null);
+      abort.current = null;
+    }
+  };
+
   const addPhotos = async (files: FileList | null) => {
     if (!files?.length) return;
     const vid = Array.from(files).find((f) => f.type.startsWith('video/'));
@@ -373,6 +456,11 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
     try {
       const out: CompressedPhoto[] = [];
       for (const f of Array.from(files).slice(0, 6)) out.push(await compressPhoto(f));
+      if (purpose.current === 'recipe') {
+        purpose.current = 'receipt';
+        setPreparing(false);
+        return void importPhotoRecipe(out);
+      }
       setPhotos((p) => [...p, ...out].slice(0, 6));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't prepare that photo.");
@@ -443,19 +531,23 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
 
   const edit = (msg: Msg, card: Card) => {
     const step = card.steps[0];
-    setCard(msg.id, card.id, { status: 'cancelled', note: 'Opened in the form. Save it there.' });
+    // the card stays usable until the form is saved (closing the form loses nothing)
+    setCard(msg.id, card.id, { note: 'Opened in the form. Saving it there finishes this card.' });
     ui.close();
+    const ref = { msgId: msg.id, cardId: card.id };
     if (card.kind === 'receipt') {
       const data = receipts.current.get(card.id);
       if (data)
-        return onEdit({ kind: 'receipt', card, msgId: msg.id, draft: data.draft, photos: data.photos });
-      return onEdit({ kind: 'purchase', draft: inputToDraft(step.input, 'receipt') });
+        return onEdit({ ref, kind: 'receipt', card, msgId: msg.id, draft: data.draft, photos: data.photos });
+      return onEdit({ ref, kind: 'purchase', draft: inputToDraft(step.input, 'receipt') });
     }
     if (card.edit === 'purchase')
-      return onEdit({ kind: 'purchase', draft: inputToDraft(step.input, 'manual') });
-    if (card.edit === 'contribution') return onEdit({ kind: 'contribution', prefill: step.input as never });
-    if (card.edit === 'item') return onEdit({ kind: 'item', itemId: (step.input as { id: string }).id });
-    if (card.edit === 'recipe') return onEdit({ kind: 'recipe', initial: step.input as Partial<Recipe> });
+      return onEdit({ ref, kind: 'purchase', draft: inputToDraft(step.input, 'manual') });
+    if (card.edit === 'contribution')
+      return onEdit({ ref, kind: 'contribution', prefill: step.input as never });
+    if (card.edit === 'item') return onEdit({ ref, kind: 'item', itemId: (step.input as { id: string }).id });
+    if (card.edit === 'recipe')
+      return onEdit({ ref, kind: 'recipe', initial: step.input as Partial<Recipe> });
   };
 
   const go = (l: Link) => {
@@ -493,8 +585,17 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
               </span>
             </span>
             <span className="row" style={{ gap: 0 }}>
-              <button type="button" className="link-btn" onClick={() => setMsgs([])}>
-                New chat
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => {
+                  if (!msgs.length) return;
+                  if (!clearArmed) return setClearArmed(true);
+                  setClearArmed(false);
+                  setMsgs([]);
+                }}
+              >
+                {clearArmed ? 'Tap again to clear' : 'New chat'}
               </button>
               <button type="button" className="icon-btn" aria-label="Close" onClick={ui.close}>
                 <IconClose size={20} />
@@ -560,16 +661,22 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
             ),
           )}
           {thinking && (
-            <div className="bubble-ai muted" role="status">
-              {thinking}
+            <div className="bubble-ai muted row" role="status" style={{ gap: 'var(--space-2)' }}>
+              <span className="grow">{thinking}</span>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => abort.current?.abort()}>
+                Stop
+              </button>
             </div>
           )}
         </div>
 
         <div className="chat-foot">
           <div className="hscroll" style={{ gap: 6 }}>
-            <button type="button" className="sugg" onClick={() => camera.current?.click()}>
+            <button type="button" className="sugg" onClick={() => setChooser('receipt')}>
               Scan a receipt
+            </button>
+            <button type="button" className="sugg" disabled={!!thinking} onClick={() => setChooser('recipe')}>
+              Recipe from a photo
             </button>
             <button
               type="button"
@@ -618,14 +725,20 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
-                  onClick={() => camera.current?.click()}
+                  onClick={() => {
+                    purpose.current = 'receipt';
+                    camera.current?.click();
+                  }}
                 >
                   Add another part
                 </button>
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={() => gallery.current?.click()}
+                  onClick={() => {
+                    purpose.current = 'receipt';
+                    gallery.current?.click();
+                  }}
                 >
                   From gallery
                 </button>
@@ -648,6 +761,42 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
           )}
           {speech.error && <div className="small danger-text">{speech.error}</div>}
           {textImport && <div className="small text-cobalt bold">Paste the recipe text and tap send.</div>}
+          {chooser && (
+            <div
+              className="photo-choose"
+              role="group"
+              aria-label={chooser === 'receipt' ? 'Receipt photo' : 'Recipe photo'}
+            >
+              <span className="field-label">{chooser === 'receipt' ? 'A receipt' : 'A recipe'}</span>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  purpose.current = chooser;
+                  setChooser(null);
+                  camera.current?.click();
+                }}
+              >
+                <IconCamera size={18} /> Take a photo
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  purpose.current = chooser;
+                  setChooser(null);
+                  gallery.current?.click();
+                }}
+              >
+                Choose from photos
+              </button>
+              {chooser === 'receipt' && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChooser('recipe')}>
+                  It's a recipe
+                </button>
+              )}
+            </div>
+          )}
           <form
             className="row"
             onSubmit={(e) => {
@@ -658,8 +807,8 @@ function AssistantPanel({ onEdit }: { onEdit: (e: Editing) => void }) {
             <button
               type="button"
               className="round-btn"
-              aria-label="Scan a receipt"
-              onClick={() => camera.current?.click()}
+              aria-label="Add a photo"
+              onClick={() => setChooser(chooser ? null : 'receipt')}
             >
               <IconCamera />
             </button>
@@ -795,9 +944,7 @@ function CardView({
         ))}
       </div>
       {card.refreshed && pending && (
-        <span className="small bold" style={{ color: 'var(--on-highlight)' }}>
-          Updated: the data changed since I first prepared this.
-        </span>
+        <span className="small notice-text">Updated: the data changed since I first prepared this.</span>
       )}
       {pending ? (
         <>
@@ -875,6 +1022,7 @@ function CardView({
 
 /** Opens the normal form for a card's Edit (the person saves it themselves). */
 function EditHost({ editing, onClose }: { editing: Editing; onClose: () => void }) {
+  const done = () => markCardSaved(editing.ref.msgId, editing.ref.cardId);
   const store = useStore();
   const { run } = useRun();
   const nav = useNavigate();
@@ -897,6 +1045,10 @@ function EditHost({ editing, onClose }: { editing: Editing; onClose: () => void 
             toast: `Receipt from ${d.store} saved`,
           });
           if (!r) await deleteReceiptPhotos(store, ids);
+          else {
+            memory.receipts.delete(editing.ref.cardId);
+            done();
+          }
           return r;
         }}
         onSaved={() => nav('/budget')}
@@ -904,16 +1056,37 @@ function EditHost({ editing, onClose }: { editing: Editing; onClose: () => void 
     );
   }
   if (editing.kind === 'purchase')
-    return <PurchaseEditor initial={editing.draft} onClose={onClose} onSaved={() => nav('/budget')} />;
+    return (
+      <PurchaseEditor
+        initial={editing.draft}
+        onClose={onClose}
+        onSaved={() => {
+          done();
+          nav('/budget');
+        }}
+      />
+    );
   if (editing.kind === 'contribution')
-    return <MoneySheet prefill={editing.prefill} onClose={onClose} onSaved={() => nav('/budget')} />;
-  if (editing.kind === 'item') return <ItemEditor itemId={editing.itemId} onClose={onClose} />;
+    return (
+      <MoneySheet
+        prefill={editing.prefill}
+        onClose={onClose}
+        onSaved={() => {
+          done();
+          nav('/budget');
+        }}
+      />
+    );
+  if (editing.kind === 'item') return <ItemEditor itemId={editing.itemId} onClose={onClose} onSaved={done} />;
   return (
     <RecipeEditor
       initial={editing.initial}
       heading="Check the recipe"
       onClose={onClose}
-      onSaved={(id) => id && nav(`/recipes/${id}`)}
+      onSaved={(id) => {
+        done();
+        if (id) nav(`/recipes/${id}`);
+      }}
     />
   );
 }

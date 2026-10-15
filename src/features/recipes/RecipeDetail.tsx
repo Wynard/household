@@ -126,18 +126,7 @@ export function RecipeDetail() {
             {c}
           </span>
         ))}
-        <button
-          type="button"
-          className="btn btn-sm"
-          style={{
-            height: 36,
-            border: '1px dashed var(--ink-muted)',
-            background: 'transparent',
-            color: 'var(--primary)',
-            fontSize: 'var(--fs-secondary)',
-          }}
-          onClick={() => setCats(true)}
-        >
+        <button type="button" className="btn btn-dashed btn-sm" onClick={() => setCats(true)}>
           Edit categories
         </button>
       </div>
@@ -166,12 +155,18 @@ export function RecipeDetail() {
           const st = statusText(r);
           const amt = amountText(r);
           const mark =
-            r.status === 'have' ? 'ok' : r.status === 'partly' || r.status === 'missing' ? 'bad' : 'muted';
+            r.status === 'have'
+              ? r.low
+                ? 'warn'
+                : 'ok'
+              : r.status === 'partly' || r.status === 'missing'
+                ? 'bad'
+                : 'muted';
           return (
             <div key={r.ingredient.id} className="row" style={{ gap: 12, padding: '12px 16px' }}>
               <span className={`ing-mark ${mark}`} aria-hidden>
                 {mark === 'ok' && <IconCheck />}
-                {mark === 'bad' && <IconBang />}
+                {(mark === 'bad' || mark === 'warn') && <IconBang />}
               </span>
               <div className="grow">
                 <div style={{ fontSize: 'var(--fs-label)' }}>

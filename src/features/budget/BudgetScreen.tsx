@@ -96,7 +96,8 @@ export function BudgetScreen() {
   const sum = monthSummary(budgets, ym, snap.household.monthlyTarget, emails);
   const nq = normalise(q);
   const shown = rows
-    .filter((r) => r.date.startsWith(ym))
+    // searching looks through every month; otherwise the month shown
+    .filter((r) => !!q.trim() || r.date.startsWith(ym))
     .filter((r) => {
       if (filter.kind === 'in') return r.kind === 'in';
       if (filter.kind === 'out') return r.kind === 'out';
@@ -220,7 +221,7 @@ export function BudgetScreen() {
       <SearchField
         style={{ marginTop: 10 }}
         aria-label="Search history"
-        placeholder="Search by item or store"
+        placeholder="Search all months, by item or store"
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -256,9 +257,11 @@ export function BudgetScreen() {
         ))}
         {shown.length === 0 && (
           <p className="muted" style={{ margin: 0, padding: '20px 16px' }}>
-            {rows.some((r) => r.date.startsWith(ym))
-              ? 'Nothing here for this filter.'
-              : `Nothing in ${monthName(ym)} yet. Add money or a purchase above.`}
+            {q.trim()
+              ? `Nothing matches "${q.trim()}" in any month.`
+              : rows.some((r) => r.date.startsWith(ym))
+                ? 'Nothing here for this filter.'
+                : `Nothing in ${monthName(ym)} yet. Add money or a purchase above.`}
           </p>
         )}
       </div>
@@ -303,7 +306,7 @@ export function BudgetScreen() {
       )}
       <p className="small muted" style={{ marginTop: 16, textAlign: 'center' }}>
         The pot doesn't match the real money?{' '}
-        <button type="button" className="link-btn" style={{ minHeight: 32 }} onClick={() => setAdjust(true)}>
+        <button type="button" className="link-btn" onClick={() => setAdjust(true)}>
           Adjust it
         </button>
       </p>
@@ -452,11 +455,14 @@ function LedgerRow({
           <div className="small muted">
             {r.kind === 'adj' ? `Added by ${memberOf(snap, r.a.by).name}` : auditText(r)}
           </div>
-          <div className="grid-2">
-            <button type="button" className="btn btn-outline btn-md" onClick={onEdit}>
-              Edit
-            </button>
-            <DeleteButton label="Delete" className="btn btn-danger btn-md" onDelete={onDelete} />
+          {/* adjustments can only be deleted (add a new one with the right amount) */}
+          <div className={r.kind === 'adj' ? undefined : 'grid-2'}>
+            {r.kind !== 'adj' && (
+              <button type="button" className="btn btn-outline btn-md" onClick={onEdit}>
+                Edit
+              </button>
+            )}
+            <DeleteButton label="Delete" className="btn btn-danger btn-md btn-block" onDelete={onDelete} />
           </div>
         </div>
       )}
@@ -514,6 +520,7 @@ export function MoneySheet({
             type="date"
             className="input"
             value={date}
+            max={todayISO()}
             onChange={(e) => e.target.value && setDate(e.target.value)}
           />
         </Field>

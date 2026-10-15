@@ -42,7 +42,8 @@ export function SettingsHome() {
     <SettingsPage
       title="Settings"
       hint="Everything the app knows lives here. Add, rename, edit or delete anything."
-      back="/stock"
+      // back to wherever Settings was opened from (the gear is on every tab)
+      back={() => (window.history.state?.idx ? nav(-1) : nav('/stock'))}
       backLabel="Close"
     >
       <h2 className="group-title">Your data</h2>
@@ -96,7 +97,7 @@ export function SettingsHome() {
         />
         <ChevronRow
           title="This phone"
-          sub="Gemini key, voice language, sign out"
+          sub="Appearance, Gemini key, sign out"
           onClick={() => nav('/settings/device')}
         />
         <ChevronRow

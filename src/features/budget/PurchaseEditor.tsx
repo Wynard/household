@@ -1,6 +1,6 @@
 import { allUnits } from '../../domain/units';
-import { useMemo, useState, type ReactNode } from 'react';
-import { FullScreen } from '../../ui/Sheet';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { DiscardBar, FullScreen, useGuardedClose } from '../../ui/Sheet';
 import { Choice, DecimalInput, Field } from '../../ui/controls';
 import { IconClose } from '../../ui/icons';
 import { useMe, useRun, useSnapshot } from '../../app/data';
@@ -185,6 +185,11 @@ export function PurchaseEditor({
       },
   );
   const [ln, setLn] = useState({ name: '', quantity: '1', unit: 'pcs' as Unit, price: '' });
+  // closing with typed lines or a scanned receipt asks first (a scan costs a Gemini request)
+  const [start] = useState(d);
+  const dirty = JSON.stringify(d) !== JSON.stringify(start) || !!ln.name.trim() || receipt;
+  const guard = useGuardedClose(dirty, onClose);
+  const nameRef = useRef<HTMLInputElement>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const [openNote, setOpenNote] = useState<string | null>(null);
   const [tried, setTried] = useState(false);
@@ -243,7 +248,12 @@ export function PurchaseEditor({
     <FullScreen z={40} label={title ?? 'Purchase'}>
       <div className="full-head">
         <h1 className="h1-sm">{title ?? (editing ? 'Edit purchase' : 'Add a purchase')}</h1>
-        <button type="button" className="icon-btn" aria-label="Close without saving" onClick={onClose}>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Close without saving"
+          onClick={guard.requestClose}
+        >
           <IconClose />
         </button>
       </div>
@@ -271,7 +281,7 @@ export function PurchaseEditor({
               </button>
             ))}
           </div>
-          <div className="grid-2" style={{ gap: 10, gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr)' }}>
+          <div className="grid-2" style={{ gap: 10 }}>
             <Field label="Date">
               <input
                 type="date"
@@ -296,7 +306,7 @@ export function PurchaseEditor({
             onChange={(v) => upd({ spentBy: v })}
             options={members.map((m) => [m.email, m.name] as [string, string])}
           />
-          <Field label="What was it for? Optional">
+          <Field label="What was it for? (optional)">
             <input
               className="input"
               placeholder="e.g. Sunday lunch with parents"
@@ -320,8 +330,8 @@ export function PurchaseEditor({
               style={{
                 padding: '12px 8px 12px 14px',
                 gap: 8,
-                borderColor: noCat ? 'var(--danger)' : low ? 'var(--highlight)' : undefined,
-                background: low ? 'var(--highlight)' : undefined,
+                // no category or an unsure match: an orange edge (the card stays readable)
+                borderLeft: low || noCat ? 'var(--space-1) solid var(--highlight)' : undefined,
               }}
             >
               {l.rawText && <div className="mono">{l.rawText}</div>}
@@ -331,7 +341,7 @@ export function PurchaseEditor({
                   aria-label="Item name"
                   value={l.name}
                   onChange={(e) => updLine(l.id, { name: e.target.value })}
-                  style={{ fontWeight: 700, height: 44 }}
+                  style={{ fontWeight: 700 }}
                 />
                 <button
                   type="button"
@@ -342,43 +352,42 @@ export function PurchaseEditor({
                   <IconClose size={18} />
                 </button>
               </div>
-              <div className="row" style={{ gap: 6, paddingRight: 6 }}>
-                <DecimalInput
-                  className="input input-sm"
-                  aria-label="Quantity"
-                  style={{ width: 70 }}
-                  value={l.quantity}
-                  onChange={(e) => updLine(l.id, { quantity: e.target.value })}
-                />
-                <select
-                  className="input input-sm"
-                  aria-label="Unit"
-                  style={{ width: 70 }}
-                  value={l.unit}
-                  onChange={(e) => updLine(l.id, { unit: e.target.value as Unit })}
-                >
-                  {allUnits(snap?.household).map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-                <DecimalInput
-                  className="input input-sm grow"
-                  aria-label="Price in lei"
-                  placeholder="Price"
-                  style={{ textAlign: 'right' }}
-                  value={l.price}
-                  onChange={(e) => updLine(l.id, { price: e.target.value })}
-                />
-                <span className="small muted">lei</span>
+              <div className="line-fields" style={{ paddingRight: 6 }}>
+                <label className="mini-field">
+                  <span>Qty</span>
+                  <DecimalInput
+                    className="input input-sm"
+                    value={l.quantity}
+                    onChange={(e) => updLine(l.id, { quantity: e.target.value })}
+                  />
+                </label>
+                <label className="mini-field">
+                  <span>Unit</span>
+                  <select
+                    className="input input-sm"
+                    value={l.unit}
+                    onChange={(e) => updLine(l.id, { unit: e.target.value as Unit })}
+                  >
+                    {allUnits(snap?.household).map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="mini-field">
+                  <span>Price, lei</span>
+                  <DecimalInput
+                    className="input input-sm"
+                    style={{ textAlign: 'right' }}
+                    value={l.price}
+                    onChange={(e) => updLine(l.id, { price: e.target.value })}
+                  />
+                </label>
               </div>
               <div className="row-between" style={{ paddingRight: 6 }}>
                 <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                  <span
-                    className="small bold"
-                    style={{ color: noCat ? 'var(--danger-text)' : 'var(--ink-muted)' }}
-                  >
+                  <span className={noCat ? 'small notice-text' : 'small bold muted'}>
                     {l.category ? catLabel(l.category, l.subcategory) : 'Needs a category'}
                   </span>
                   {l.auto && l.category && (
@@ -387,12 +396,7 @@ export function PurchaseEditor({
                     </span>
                   )}
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  style={{ height: 36, borderWidth: 1, fontSize: 'var(--fs-secondary)' }}
-                  onClick={() => setPicking(l.id)}
-                >
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setPicking(l.id)}>
                   {l.category ? 'Change' : 'Pick category'}
                 </button>
               </div>
@@ -403,7 +407,7 @@ export function PurchaseEditor({
                 >
                   <span
                     className="small"
-                    style={{ color: it ? 'var(--primary)' : 'var(--ink-muted)', fontWeight: 700 }}
+                    style={{ color: it ? 'var(--ink)' : 'var(--ink-muted)', fontWeight: 700 }}
                   >
                     {it
                       ? `Matches ${it.name} in your items`
@@ -444,12 +448,7 @@ export function PurchaseEditor({
                   </button>
                   <button
                     type="button"
-                    className="btn btn-md"
-                    style={{
-                      border: '2px solid var(--ink)',
-                      background: 'transparent',
-                      fontSize: 'var(--fs-secondary)',
-                    }}
+                    className="btn btn-outline btn-md"
                     onClick={() => updLine(l.id, { itemId: undefined, confirmed: true })}
                   >
                     It's something else
@@ -460,7 +459,7 @@ export function PurchaseEditor({
                 <input
                   className="input input-sm"
                   aria-label={`Note for ${l.name}`}
-                  placeholder="Note, e.g. for the party"
+                  placeholder="Note (optional), e.g. for the party"
                   value={l.note ?? ''}
                   onChange={(e) => updLine(l.id, { note: e.target.value })}
                 />
@@ -468,7 +467,7 @@ export function PurchaseEditor({
                 <button
                   type="button"
                   className="link-btn small"
-                  style={{ alignSelf: 'flex-start', minHeight: 32 }}
+                  style={{ alignSelf: 'flex-start' }}
                   onClick={() => setOpenNote(l.id)}
                 >
                   Add a note
@@ -478,17 +477,19 @@ export function PurchaseEditor({
           );
         })}
 
-        {!receipt && (
+        {
           <form
             className="dashed stack"
             style={{ gap: 10 }}
             onSubmit={(e) => {
               e.preventDefault();
               addLine();
+              nameRef.current?.focus(); // ready for the next one
             }}
           >
-            <span className="bold">Add an item</span>
+            <span className="field-label">{receipt ? 'Add a line the scan missed' : 'Add an item'}</span>
             <input
+              ref={nameRef}
               className="input"
               aria-label="Item name"
               placeholder="Item name, e.g. Cașcaval"
@@ -496,14 +497,8 @@ export function PurchaseEditor({
               onChange={(e) => setLn({ ...ln, name: e.target.value })}
             />
             <span
-              className="small bold"
-              style={{
-                color: !ln.name.trim()
-                  ? 'var(--ink-muted)'
-                  : guess
-                    ? 'var(--primary)'
-                    : 'var(--on-highlight)',
-              }}
+              className={`small ${ln.name.trim() && !guess ? 'notice-text' : 'bold'}`}
+              style={{ color: ln.name.trim() ? 'var(--ink)' : 'var(--ink-muted)' }}
             >
               {!ln.name.trim()
                 ? 'A category is suggested as you type'
@@ -511,41 +506,41 @@ export function PurchaseEditor({
                   ? `Category: ${catLabel(guess.category, guess.subcategory)}`
                   : "No category found. You'll pick one after adding."}
             </span>
-            <div className="row" style={{ gap: 8 }}>
-              <DecimalInput
-                className="input"
-                aria-label="Quantity"
-                style={{ width: 80, height: 44 }}
-                value={ln.quantity}
-                onChange={(e) => setLn({ ...ln, quantity: e.target.value })}
-              />
-              <div className="unit-grid grow" role="group" aria-label="Unit" style={{ gap: 4 }}>
-                {allUnits(snap?.household).map((u) => (
-                  <button
-                    key={u}
-                    type="button"
-                    aria-pressed={ln.unit === u}
-                    onClick={() => setLn({ ...ln, unit: u })}
-                  >
-                    {u}
-                  </button>
-                ))}
-              </div>
+            <div className="grid-2" style={{ gap: 8 }}>
+              <label className="mini-field">
+                <span>Qty</span>
+                <DecimalInput
+                  className="input"
+                  value={ln.quantity}
+                  onChange={(e) => setLn({ ...ln, quantity: e.target.value })}
+                />
+              </label>
+              <label className="mini-field">
+                <span>Price, lei</span>
+                <DecimalInput
+                  className="input"
+                  value={ln.price}
+                  onChange={(e) => setLn({ ...ln, price: e.target.value })}
+                />
+              </label>
             </div>
-            <div className="row">
-              <DecimalInput
-                className="input grow"
-                aria-label="Price in lei"
-                placeholder="Price in lei"
-                value={ln.price}
-                onChange={(e) => setLn({ ...ln, price: e.target.value })}
-              />
-              <button type="submit" className="btn btn-ink btn-md" disabled={!ln.name.trim()}>
-                Add item
-              </button>
+            <div className="unit-grid" role="group" aria-label="Unit" style={{ gap: 4 }}>
+              {allUnits(snap?.household).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  aria-pressed={ln.unit === u}
+                  onClick={() => setLn({ ...ln, unit: u })}
+                >
+                  {u}
+                </button>
+              ))}
             </div>
+            <button type="submit" className="btn btn-ink btn-md btn-block" disabled={!ln.name.trim()}>
+              Add item
+            </button>
           </form>
-        )}
+        }
         {d.printedTotal !== undefined && (
           <div
             className={`callout ${Math.abs(diff) < 0.01 ? 'callout-cobalt' : 'callout-saffron'} bold`}
@@ -561,6 +556,7 @@ export function PurchaseEditor({
         )}
       </div>
       <div className="full-foot">
+        {guard.confirming && <DiscardBar onKeep={guard.keep} onDiscard={guard.discard} />}
         {problem && (tried || d.lines.length > 0) && <span className="problem">{problem}</span>}
         <button
           type="button"
