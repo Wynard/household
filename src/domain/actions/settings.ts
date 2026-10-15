@@ -522,3 +522,88 @@ export const deleteUnit = defineAction({
     return { title: `Delete ${name}`, lines: [], ops: [O.household.listRemove('units', name)] };
   },
 });
+
+// ---------- merging and tidying categories ----------
+const catRef = z.object({ category: z.string().min(1), subcategory: z.string().default('') });
+const label = (c: string, s: string) => (s ? `${c} › ${s}` : c);
+
+/**
+ * Moves everything in a category (or one subcategory) into another one:
+ * items, purchase lines and usage history. Then the source is removed: the
+ * subcategory, or the whole category when no subcategory was given.
+ */
+export const mergeCategory = defineAction({
+  name: 'mergeCategory',
+  input: z.object({ from: catRef, to: catRef }),
+  plan(ctx, { from, to }) {
+    const tree = ctx.snap.household.categories;
+    const src = tree.find((c) => c.name === from.category);
+    const dst = tree.find((c) => c.name === to.category);
+    const title = `Merge ${label(from.category, from.subcategory)} into ${label(to.category, to.subcategory)}`;
+    if (!src || (from.subcategory && !src.subcategories.includes(from.subcategory)))
+      return { title, lines: [], ops: [], blocked: `There's no ${label(from.category, from.subcategory)}.` };
+    if (!dst || (to.subcategory && !dst.subcategories.includes(to.subcategory)))
+      return { title, lines: [], ops: [], blocked: `There's no ${label(to.category, to.subcategory)}.` };
+    if (from.category === to.category && (!from.subcategory || from.subcategory === to.subcategory))
+      return { title, lines: [], ops: [], blocked: 'Pick a different category to merge into.' };
+    const match = (c: string, s: string) =>
+      c === from.category && (!from.subcategory || s === from.subcategory);
+    const use = categoryUse(ctx, from.category, from.subcategory || undefined);
+    return {
+      title,
+      lines: [
+        `Moves ${plural(use.items, 'item')}, ${plural(use.lines, 'purchase line')} and ${plural(use.usage, 'usage entry', 'usage entries')}`,
+        from.subcategory
+          ? `Then removes ${label(from.category, from.subcategory)}`
+          : `Then removes ${from.category}`,
+      ],
+      ops: [
+        ...cascadeCategory(ctx, match, { category: to.category, subcategory: to.subcategory }),
+        from.subcategory
+          ? O.household.subRemove(from.category, from.subcategory)
+          : O.household.catRemove(from.category),
+      ],
+      danger: true,
+    };
+  },
+});
+
+/** Categories and subcategories that no item or purchase line uses (usage history doesn't count, as for delete). */
+export function unusedCategories(ctx: Pick<Ctx, 'snap'>) {
+  const cats: string[] = [];
+  const subs: { category: string; name: string }[] = [];
+  for (const c of ctx.snap.household.categories) {
+    const u = categoryUse(ctx, c.name);
+    if (!u.items && !u.lines) {
+      cats.push(c.name);
+      continue;
+    }
+    for (const s of c.subcategories) {
+      const us = categoryUse(ctx, c.name, s);
+      if (!us.items && !us.lines) subs.push({ category: c.name, name: s });
+    }
+  }
+  return { cats, subs };
+}
+
+export const removeUnusedCategories = defineAction({
+  name: 'removeUnusedCategories',
+  input: z.object({}),
+  plan(ctx) {
+    const { cats, subs } = unusedCategories(ctx);
+    if (!cats.length && !subs.length)
+      return { title: 'Remove unused categories', lines: [], ops: [], blocked: 'Every category is in use.' };
+    return {
+      title: `Remove ${plural(cats.length + subs.length, 'unused category', 'unused categories')}`,
+      lines: [
+        ...(cats.length ? [`Categories: ${cats.join(', ')}`] : []),
+        ...(subs.length ? [`Subcategories: ${subs.map((s) => `${s.category} › ${s.name}`).join(', ')}`] : []),
+      ],
+      ops: [
+        ...subs.map((s) => O.household.subRemove(s.category, s.name)),
+        ...cats.map((c) => O.household.catRemove(c)),
+      ],
+      danger: true,
+    };
+  },
+});

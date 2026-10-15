@@ -26,7 +26,11 @@ export const RECEIPT_JSON_SCHEMA = {
         type: 'object',
         properties: {
           rawText: { type: 'string', description: 'The product line exactly as printed' },
-          name: { type: 'string', description: 'Clear product name in English, e.g. "Milk 1.5%"' },
+          name: {
+            type: 'string',
+            description:
+              'Clear product name in Romanian, e.g. "Lapte 1,5%"; the catalog item name when itemId is set',
+          },
           quantity: { type: 'number' },
           unit: { type: 'string', enum: UNIT_ENUM },
           price: { type: 'number', description: 'Line total in lei after any discount on the next line' },
@@ -89,13 +93,13 @@ export type ReceiptAnswer = z.infer<typeof receiptAnswer>;
 
 export const RECEIPT_PROMPT = `You read Romanian supermarket and market receipts for a two-person household in Romania. Amounts are in lei (RON).
 Rules:
-- Product names are abbreviated (e.g. "LAPTE ZUZU 1,5% 1L", "PIEPT PUI", "DETERG VASE"). Give each a clear English name.
+- Product names are abbreviated (e.g. "LAPTE ZUZU 1,5% 1L", "PIEPT PUI", "DETERG VASE"). Give each a clear name in Romanian, written the way the household writes item names (the item catalog shows them). When the line is a catalog item, use that item's name exactly.
 - Commas are decimal separators: "12,99" means 12.99.
 - Quantity lines like "2 BUC x 4,99" mean 2 pieces at 4.99 each; weight lines like "0,542 KG x 12,99" mean 0.542 kg. Use the line total as price.
 - A discount line (DISCOUNT, REDUCERE, "-2,00") belongs to the product line above it: subtract it from that line's price and don't list it separately.
 - Ignore VAT/TVA summaries, fiscal codes, payment lines, change (REST), subtotals and totals except the final TOTAL.
 - Never return card numbers, card types, loyalty or account numbers, cashier names or store addresses. Leave them out entirely.
-- Choose category and subcategory only from the category tree given.
+- Choose category and subcategory only from the category tree given; leave the subcategory empty when the category has none.
 - Set itemId only when the line is clearly the same product as a catalog item; otherwise null.
 - confidence below 0.7 means the person should check the line.
 - If something is unreadable, give your best guess and a low confidence.`;

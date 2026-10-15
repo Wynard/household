@@ -118,7 +118,7 @@ const PROMPT = (
 - Rewrite the method as short numbered steps: one action per step, imperative voice ("Chop the onion."), with temperatures and times written in the step. Put a step's waiting or cooking time in timerSeconds.
 - Choose categories only from this list: ${categories.join(', ') || '(none yet)'}. If none fits, suggest one newCategory, else null.
 - Set itemId only when the ingredient is clearly a product in the catalog; otherwise null.
-- Keep the source's language for the title if it's a well-known dish name (e.g. "Ciorbă de perișoare"), but write steps and ingredients in English.`;
+- Write everything in English: the title, ingredient names and steps (translate Romanian sources). Ingredients still link to catalog items by itemId, whatever language the catalog uses.`;
 
 type RecipeSource = {
   url?: string;

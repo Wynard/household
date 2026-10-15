@@ -1,12 +1,20 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRun, useSnapshot } from '../../app/data';
-import { Chip, Loading, SearchField } from '../../ui/controls';
+import { Chip, DeleteButton, Loading, SearchField } from '../../ui/controls';
 import { IconGrip } from '../../ui/icons';
 import { useToast } from '../../ui/Toast';
 import { normalise } from '../../domain/categorise';
 import { catLabel, plural } from '../../domain/format';
-import { categoryUse, placeUse, recipeCategoryUse, storeUse, unitUse } from '../../domain/actions/settings';
+import {
+  categoryUse,
+  placeUse,
+  recipeCategoryUse,
+  storeUse,
+  unitUse,
+  unusedCategories,
+} from '../../domain/actions/settings';
+import { CategoryPicker } from '../stock/CategoryPicker';
 import { UNITS } from '../../domain/schemas';
 import type { Snapshot } from '../../domain/actions';
 import { ItemEditor } from '../stock/ItemEditor';
@@ -93,9 +101,70 @@ export function CategoriesTable() {
   const { snap } = useSnapshot();
   const { run } = useRun();
   const [edit, setEdit] = useState<CatEdit | null>(null);
+  // "Merge into…": pick the target, then confirm
+  const [mergePicking, setMergePicking] = useState(false);
+  const [mergeTo, setMergeTo] = useState<{ category: string; subcategory: string } | null>(null);
   if (!snap) return <Loading />;
   const ctx = ctxOf(snap);
   const tree = snap.household.categories;
+  const unused = unusedCategories(ctx);
+  const unusedCount = unused.cats.length + unused.subs.length;
+  const closeEdit = () => {
+    setEdit(null);
+    setMergeTo(null);
+    setMergePicking(false);
+  };
+  const from =
+    edit && edit.old
+      ? edit.kind === 'cat'
+        ? { category: edit.old, subcategory: '' }
+        : { category: edit.parent, subcategory: edit.old }
+      : null;
+  const mergeExtra = from ? (
+    mergeTo ? (
+      <div className="note stack-sm">
+        <span className="bold">
+          Merge {catLabel(from.category, from.subcategory)} into{' '}
+          {catLabel(mergeTo.category, mergeTo.subcategory)}?
+        </span>
+        <span className="small">
+          {plural(categoryUse(ctx, from.category, from.subcategory || undefined).items, 'item')},{' '}
+          {plural(categoryUse(ctx, from.category, from.subcategory || undefined).lines, 'purchase line')} and
+          their history move there, then {catLabel(from.category, from.subcategory)} is removed. You can undo
+          it.
+        </span>
+        <div className="grid-2">
+          <button type="button" className="btn btn-ghost btn-md" onClick={() => setMergeTo(null)}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-md"
+            onClick={async () => {
+              if (
+                await run(
+                  'mergeCategory',
+                  { from, to: mergeTo },
+                  { toast: `Merged into ${mergeTo.category}` },
+                )
+              )
+                closeEdit();
+            }}
+          >
+            Merge
+          </button>
+        </div>
+      </div>
+    ) : (
+      <button
+        type="button"
+        className="btn btn-outline btn-md btn-block"
+        onClick={() => setMergePicking(true)}
+      >
+        Merge into another category…
+      </button>
+    )
+  ) : null;
 
   const editor = () => {
     if (!edit) return null;
@@ -127,7 +196,8 @@ export function CategoriesTable() {
                   !!(await run('deleteCategory', { name: edit.old! }, { toast: `${edit.old} deleted` }))
               : undefined
           }
-          onClose={() => setEdit(null)}
+          onClose={closeEdit}
+          extra={mergeExtra}
         />
       );
     }
@@ -167,7 +237,8 @@ export function CategoriesTable() {
                 ))
             : undefined
         }
-        onClose={() => setEdit(null)}
+        onClose={closeEdit}
+        extra={mergeExtra}
       />
     );
   };
@@ -178,6 +249,27 @@ export function CategoriesTable() {
       hint="Two levels: category and subcategory. Tap a subcategory to rename or delete it. Renaming updates everything that uses it."
       add={{ label: 'New category', onClick: () => setEdit({ kind: 'cat' }) }}
     >
+      {unusedCount > 0 && (
+        <div className="card card-pad stack-sm" style={{ marginBottom: 'var(--space-3)' }}>
+          <span className="bold">
+            {plural(unusedCount, 'category', 'categories')} not used by any item or purchase
+          </span>
+          <span className="small muted">
+            {[...unused.cats, ...unused.subs.map((x) => `${x.category} › ${x.name}`)].join(', ')}
+          </span>
+          <DeleteButton
+            label={`Remove ${unusedCount === 1 ? 'it' : `these ${unusedCount}`}`}
+            className="btn btn-outline btn-md btn-block"
+            onDelete={() =>
+              void run(
+                'removeUnusedCategories',
+                {},
+                { toast: `Removed ${plural(unusedCount, 'unused category', 'unused categories')}` },
+              )
+            }
+          />
+        </div>
+      )}
       <div className="stack">
         {tree.map((c) => (
           <div key={c.name} className="card stack" style={{ padding: '12px 12px 14px 16px' }}>
@@ -223,6 +315,16 @@ export function CategoriesTable() {
         ))}
       </div>
       {editor()}
+      {mergePicking && from && (
+        <CategoryPicker
+          z={56}
+          onClose={() => setMergePicking(false)}
+          onPick={(category, subcategory) => {
+            setMergePicking(false);
+            setMergeTo({ category, subcategory });
+          }}
+        />
+      )}
     </SettingsPage>
   );
 }

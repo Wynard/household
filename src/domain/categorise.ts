@@ -217,13 +217,59 @@ export function ruleCategory(name: string): { category: string; subcategory: str
 const inTree = (tree: CategoryTree, c: string, s: string) =>
   tree.some((n) => n.name === c && (!s || n.subcategories.includes(s)));
 
-/** Suggests a category for a new name, or null ("Needs a category"). */
+/**
+ * Where this household keeps things a keyword rule recognises: for each rule
+ * target ('Dairy & eggs › Milk'), the category most of the household's own items
+ * matching that same rule are in. Lets the rules (written against the default
+ * tree) suggest the household's own categories, in its own language.
+ */
+const learned = new WeakMap<Item[], Map<string, { category: string; subcategory: string }>>();
+function learnedTargets(items: Item[], tree: CategoryTree) {
+  const hit = learned.get(items);
+  if (hit) return hit;
+  const votes = new Map<string, Map<string, number>>();
+  const vote = (key: string, value: string) => {
+    const m = votes.get(key) ?? new Map<string, number>();
+    m.set(value, (m.get(value) ?? 0) + 1);
+    votes.set(key, m);
+  };
+  for (const i of items) {
+    if (i.archived || !inTree(tree, i.category, i.subcategory)) continue;
+    const r = ruleCategory(i.name);
+    if (!r) continue;
+    const at = JSON.stringify([i.category, i.subcategory]);
+    vote(`${r.category}›${r.subcategory}`, at);
+    vote(r.category, at);
+  }
+  const out = new Map<string, { category: string; subcategory: string }>();
+  for (const [key, m] of votes) {
+    const ranked = [...m].sort((x, y) => y[1] - x[1]);
+    // a clear favourite only: more than half of the matching items, and no tie
+    const total = ranked.reduce((t, [, n]) => t + n, 0);
+    if (ranked[0][1] * 2 <= total || (ranked[1] && ranked[1][1] === ranked[0][1])) continue;
+    const [category, subcategory] = JSON.parse(ranked[0][0]) as [string, string];
+    out.set(key, { category, subcategory });
+  }
+  learned.set(items, out);
+  return out;
+}
+
+/**
+ * Suggests a category for a new name, or null ("Needs a category"):
+ * 1. an item with this name or spelling already exists: its category;
+ * 2. a keyword rule matches and its category exists in the tree: that one;
+ * 3. a keyword rule matches but the household uses its own categories: the one
+ *    where most of its items that match the same rule are (subcategory first).
+ */
 export function categorise(name: string, items: Item[], tree: CategoryTree): CategoryGuess | null {
   const known = findKnownItem(name, items);
   if (known && inTree(tree, known.category, known.subcategory))
     return { category: known.category, subcategory: known.subcategory, via: 'known', itemId: known.id };
   const r = ruleCategory(name);
+  if (!r) return null;
   // the user may have renamed or deleted a default category; only suggest what exists
-  if (r && inTree(tree, r.category, r.subcategory)) return { ...r, via: 'rule' };
-  return null;
+  if (inTree(tree, r.category, r.subcategory)) return { ...r, via: 'rule' };
+  const map = learnedTargets(items, tree);
+  const own = map.get(`${r.category}›${r.subcategory}`) ?? map.get(r.category);
+  return own ? { ...own, via: 'rule' } : null;
 }

@@ -799,9 +799,14 @@ mark {
   align-items: center;
   justify-content: flex-start;
   padding: 3px;
-  transition: background var(--dur-fast);
+  transition:
+    background var(--dur-fast),
+    box-shadow var(--dur-fast);
 }
 .switch::after {
+  transition:
+    transform var(--dur-pop) var(--ease-pop),
+    background var(--dur-fast);
   content: '';
   width: 24px;
   height: 24px;
@@ -813,12 +818,12 @@ mark {
 .switch[data-on='true'] {
   background: var(--primary);
   box-shadow: none;
-  justify-content: flex-end;
 }
 [aria-pressed='true'] > .switch::after,
 [aria-checked='true'] > .switch::after,
 .switch[data-on='true']::after {
   background: var(--on-primary);
+  transform: translateX(20px);
 }
 
 /* ---------- Forms ---------- */
@@ -1986,4 +1991,100 @@ input[type='search']::-webkit-search-cancel-button {
 }
 .photo-choose .field-label {
   flex-basis: 100%;
+}
+
+/* ---------- Feedback animations (user request, 2026-10-15) ----------
+   Quick and small: a press, a selection that pops, a check that lands.
+   Reduced motion: the global rule above turns animations into a fade and drops transitions. */
+@keyframes hh-pop {
+  0% {
+    transform: scale(0.88);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes hh-bump {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-3px) scale(1.08);
+  }
+  100% {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* everything tappable presses in a little */
+  .btn,
+  .chip,
+  .sugg,
+  .choice,
+  .seg button,
+  .status-seg button,
+  .unit-grid button,
+  .cat-opt,
+  .sub-chip,
+  .icon-btn,
+  .round-btn,
+  .fab,
+  .tab,
+  .step-btn,
+  .switch-row,
+  .list-row,
+  .ledger-row,
+  .plan-slot,
+  .link-btn {
+    transition:
+      transform var(--dur-fast) var(--ease-out),
+      background var(--dur-fast),
+      opacity var(--dur-fast);
+  }
+  .btn:active:not(:disabled),
+  .chip:active,
+  .sugg:active,
+  .choice:active,
+  .seg button:active,
+  .status-seg button:active,
+  .unit-grid button:active,
+  .cat-opt:active,
+  .sub-chip:active,
+  .icon-btn:active:not(:disabled),
+  .round-btn:active:not(:disabled),
+  .fab:active,
+  .step-btn:active:not(:disabled),
+  .link-btn:active {
+    transform: scale(var(--press-scale));
+  }
+  .list-row:active,
+  .ledger-row:active,
+  .switch-row:active,
+  .plan-slot:active {
+    transform: scale(0.99);
+  }
+  /* a new selection pops into place */
+  .chip[aria-pressed='true'],
+  .choice[aria-pressed='true'],
+  .seg button[aria-pressed='true'],
+  .status-seg button[aria-checked='true'],
+  .unit-grid button[aria-pressed='true'],
+  .checkbox.on,
+  .tab[aria-current='page'] .pill {
+    animation: hh-pop var(--dur-pop) var(--ease-pop);
+  }
+  /* an amount that changed gives a small bump */
+  .step-val > .bump {
+    display: inline-block;
+    animation: hh-bump var(--dur-pop) var(--ease-out);
+  }
+  /* new chat messages and cards slide in */
+  .bubble-user,
+  .bubble-ai,
+  .action-card {
+    animation: hh-up var(--dur-sheet) var(--ease-out);
+  }
 }

@@ -144,7 +144,42 @@ describe('traps from our own kind of list (fictional names)', () => {
       category: 'Lactate & oua',
       subcategory: '',
     });
-    // with our own tree the English rules have nowhere to go: no wrong guess
-    expect(categorise('Lapte ovaz', own, tree)).toBeNull();
+    // the English rule (dairy) maps to the household's own category, learned from its items
+    expect(categorise('Lapte ovaz', own, tree)).toMatchObject({ category: 'Lactate & oua', subcategory: '' });
+  });
+});
+
+describe('rules learn the household own categories (fictional list)', () => {
+  const tree = [
+    { name: 'Lactate & oua', subcategories: [] },
+    { name: 'Legume', subcategories: [] },
+    { name: 'Conserve', subcategories: [] },
+    { name: 'Curatenie', subcategories: [] },
+  ];
+  const mk = (name: string, category: string) =>
+    ({ id: name, name, category, subcategory: '', aliases: [], archived: false }) as unknown as Item;
+  const own = [
+    mk('Branza feta', 'Lactate & oua'),
+    mk('Iaurt grecesc', 'Lactate & oua'),
+    mk('Smantana', 'Lactate & oua'),
+    mk('Morcovi', 'Legume'),
+    mk('Ceapa rosie', 'Legume'),
+    mk('Detergent vase', 'Curatenie'),
+    mk('Fasole boabe', 'Conserve'),
+  ];
+
+  it('suggests the section where the household keeps the same kind of thing', () => {
+    expect(categorise('Lapte', own, tree)).toMatchObject({ category: 'Lactate & oua', via: 'rule' });
+    expect(categorise('Cartofi', own, tree)).toMatchObject({ category: 'Legume' });
+    expect(categorise('Burete vase', own, tree)).toMatchObject({ category: 'Curatenie' });
+  });
+
+  it('never suggests a default English category that is not in the tree', () => {
+    expect(categorise('Lapte', own, tree)?.category).not.toBe('Dairy & eggs');
+  });
+
+  it('stays quiet when the household is split on it', () => {
+    const split = [mk('Mere', 'Legume'), mk('Pere', 'Conserve')];
+    expect(categorise('Banane', split, tree)).toBeNull();
   });
 });

@@ -83,6 +83,7 @@ export function NameEditor({
   onSave,
   onDelete,
   onClose,
+  extra,
 }: {
   title: string;
   initial?: string;
@@ -94,6 +95,8 @@ export function NameEditor({
   onSave: (name: string) => Promise<boolean>;
   onDelete?: () => Promise<boolean>;
   onClose: () => void;
+  /** more actions (e.g. Merge into…), shown above Delete */
+  extra?: ReactNode;
 }) {
   const [value, setValue] = useState(initial);
   const v = value.trim();
@@ -103,7 +106,7 @@ export function NameEditor({
     existing.some((x) => x.toLowerCase() === v.toLowerCase());
   const can = !!v && v !== initial && !dup;
   return (
-    <Sheet onClose={onClose} title={title} z={47} labelledBy="ne-title">
+    <Sheet onClose={onClose} title={title} z={47} labelledBy="ne-title" dirty={v !== initial.trim()}>
       {hint && (
         <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-secondary)' }}>
           {hint}
@@ -124,6 +127,7 @@ export function NameEditor({
           {saveLabel ?? (initial ? 'Rename' : 'Create')}
         </button>
       </form>
+      {extra}
       {onDelete &&
         (guard ? (
           <p className="note" style={{ margin: 0 }}>

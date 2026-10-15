@@ -32,6 +32,8 @@ import {
   updatePurchase,
 } from './budget';
 import {
+  mergeCategory,
+  removeUnusedCategories,
   addUnit,
   deleteUnit,
   renameUnit,
@@ -55,6 +57,8 @@ import {
 } from './settings';
 
 export const ACTIONS = {
+  mergeCategory,
+  removeUnusedCategories,
   addUnit,
   deleteUnit,
   renameUnit,

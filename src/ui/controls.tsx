@@ -132,8 +132,11 @@ export function Stepper({
       <button type="button" className="step-btn" aria-label={decLabel} onClick={onDec} disabled={decDisabled}>
         <IconMinus />
       </button>
-      <span className="step-val" style={{ minWidth: wide }}>
-        {value}
+      <span className="step-val" style={{ minWidth: wide }} aria-live="polite">
+        {/* keyed on the value: a new amount replays the small bump */}
+        <span key={String(value)} className="bump">
+          {value}
+        </span>
       </span>
       <button type="button" className="step-btn plus" aria-label={incLabel} onClick={onInc}>
         <IconPlus />
