@@ -258,17 +258,16 @@ function StockRow({
       className={`stock-row${st === 'have' ? '' : ` is-${st}`}${item.active ? '' : ' is-inactive'}`}
       {...longPress}
     >
-      <div className="grow">
-        <button type="button" className="stock-name" aria-label={`Edit ${item.name}`} onClick={onEdit}>
+      {/* the whole left side opens the editor: a big target without a tall row */}
+      <button type="button" className="stock-main" aria-label={`Edit ${item.name}`} onClick={onEdit}>
+        <span className="stock-name">
           {item.name}
-        </button>
-        <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-          {!item.active && <span className="tag tag-grey">Not watched</span>}
+          {!item.active && <span className="tag tag-grey tag-sm">Not watched</span>}
           {/* simple items show their status in the control; amount items get the badge */}
-          {!simple && st !== 'have' && <span className={BADGE[st].cls}>{BADGE[st].label}</span>}
-          {sub && <span className="small muted">{sub}</span>}
-        </div>
-      </div>
+          {!simple && st !== 'have' && <span className={`${BADGE[st].cls} tag-sm`}>{BADGE[st].label}</span>}
+        </span>
+        {sub && <span className="stock-sub">{sub}</span>}
+      </button>
       {!item.active ? null : simple ? (
         <StatusControl name={item.name} value={st} onChange={onStatus} />
       ) : (

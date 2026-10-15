@@ -223,8 +223,8 @@ img {
 .h2,
 .group-title,
 .section-head {
-  margin: var(--gap-header) 0 var(--space-3);
-  padding-bottom: 6px;
+  margin: var(--space-4) 0 var(--space-2);
+  padding-bottom: var(--space-1);
   border-bottom: var(--rule) solid var(--ink);
   font-family: var(--font-display);
   font-size: var(--fs-header);
@@ -400,7 +400,7 @@ mark {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: 6px 14px;
   border: 0;
   background: transparent;
   color: var(--ink);
@@ -413,7 +413,7 @@ mark {
 }
 .list-row .title {
   font-size: var(--fs-item);
-  line-height: var(--lh-item);
+  line-height: 1.25;
   font-weight: var(--fw-semibold);
 }
 .list-row .sub {
@@ -1162,23 +1162,40 @@ input[type='search']::-webkit-search-cancel-button {
 .stock-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
   min-height: var(--row-min);
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
-.stock-name {
+.stock-main {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 6px 0 6px 14px;
   border: 0;
   background: transparent;
-  padding: 0;
   text-align: left;
+  color: var(--ink);
+}
+.stock-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
   font-weight: var(--fw-semibold);
   font-size: var(--fs-item);
-  line-height: var(--lh-item);
-  color: var(--ink);
-  min-height: var(--tap);
+  line-height: 1.25;
+}
+.stock-sub {
+  font-size: var(--fs-secondary);
+  line-height: 1.25;
+  color: var(--ink-muted);
 }
 .stock-row.is-inactive .stock-name {
   color: var(--ink-muted);
@@ -1232,7 +1249,7 @@ input[type='search']::-webkit-search-cancel-button {
   position: sticky;
   top: calc(-1 * var(--space-5)); /* .page has 20 px top padding: stick to the very top edge */
   z-index: 2;
-  margin: var(--gap-header) calc(-1 * var(--pad-screen)) var(--space-3);
+  margin: var(--space-4) calc(-1 * var(--pad-screen)) var(--space-2);
   padding: 0 var(--pad-screen);
   background: var(--bg);
 }
@@ -1279,7 +1296,7 @@ input[type='search']::-webkit-search-cancel-button {
 .status-seg button {
   min-height: var(--tap);
   min-width: var(--tap);
-  padding: 0 var(--space-2);
+  padding: 0 6px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -2087,4 +2104,11 @@ input[type='search']::-webkit-search-cancel-button {
   .action-card {
     animation: hh-up var(--dur-sheet) var(--ease-out);
   }
+}
+
+/* a badge inside a compact row */
+.tag-sm {
+  padding: 0 6px;
+  font-size: var(--fs-caps);
+  line-height: 1.5;
 }

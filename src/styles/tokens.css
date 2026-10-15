@@ -62,7 +62,7 @@
   --fs-header: 19px;
   --lh-header: 1.15;
   --fs-sheet-title: 21px;
-  --fs-item: 17px;
+  --fs-item: 16px;
   --lh-item: 1.35;
   --fs-body: 16px;
   --lh-body: 1.45;
@@ -114,7 +114,7 @@
 
   /* ---- sizes (minimums) ---- */
   --tap: 44px;
-  --row-min: 60px;
+  --row-min: 52px;
   --btn-h: 52px;
   --btn-h-2: 48px;
   --btn-h-sm: 44px;
