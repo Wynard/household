@@ -23,7 +23,7 @@ export const importList = defineAction({
       }),
     ),
     /** section (category) -> storage place, overriding the defaults */
-    places: z.record(z.string().trim().min(1)).default({}),
+    places: z.record(z.string(), z.string().trim().min(1)).default({}),
     /** put the items we don't have on the shopping list */
     addMissingToList: z.boolean().default(true),
   }),

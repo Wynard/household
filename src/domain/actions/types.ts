@@ -52,7 +52,7 @@ export interface ActionPlan<R = unknown> extends Preview {
 export interface ActionDef<I = unknown, R = unknown> {
   name: string;
   /** Output type I; the raw input may differ (defaults, coercion). */
-  input: z.ZodType<I, z.ZodTypeDef, unknown>;
+  input: z.ZodType<I, unknown>;
   /** Extra files the action needs loaded (e.g. a past year's budget). */
   needs?: (input: I) => DataFile[];
   plan: (ctx: Ctx, input: I) => ActionPlan<R>;

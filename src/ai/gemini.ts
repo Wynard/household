@@ -222,7 +222,7 @@ export function extractJson(text: string): unknown {
 export async function generateJson<T>(
   req: Omit<GenerateRequest, 'generationConfig'>,
   jsonSchema: Record<string, unknown>,
-  zodSchema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  zodSchema: z.ZodType<T, unknown>,
   opts: { schemaInPrompt?: boolean; signal?: AbortSignal } = {},
 ): Promise<T> {
   const generationConfig = opts.schemaInPrompt
