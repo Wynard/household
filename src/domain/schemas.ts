@@ -58,6 +58,8 @@ export const householdPayload = z.object({
   recipeCategories: z.array(z.string().min(1)),
   /** The household's own counting units (can, jar, pack…), on top of the built-in ones. */
   units: z.array(z.string().min(1)).default([]),
+  /** What pot money is spent on (Groceries, Rent…). Not the item category tree. */
+  budgetCategories: z.array(z.string().min(1)).default([]),
   /** Years that have a budget-YYYY.json / usage-YYYY.json file. */
   years: z.array(z.number().int()),
   /** Drive file ID of every data file, so each phone can tell "not created yet" from "not shared with me yet". */
@@ -190,6 +192,11 @@ export const purchaseLineSchema = z.object({
 });
 export type PurchaseLine = z.infer<typeof purchaseLineSchema>;
 
+/**
+ * Money paid from the pot. Since v5 a purchase is usually just a total with a
+ * budget category, who paid and a description. Older purchases (and receipt
+ * scans) also have a store and item lines.
+ */
 export const purchaseSchema = z.object({
   id,
   date: isoDate,
@@ -197,12 +204,15 @@ export const purchaseSchema = z.object({
     .string()
     .regex(/^\d{2}:\d{2}$/)
     .optional(),
-  store: z.string().min(1),
+  store: z.string().min(1).optional(),
+  /** one of household.budgetCategories; missing on purchases made before v5 */
+  category: z.string().min(1).optional(),
   spentBy: z.string(),
+  /** free text: what it was or where, e.g. "Electricity for June" */
   purpose: z.string().optional(),
-  lines: z.array(purchaseLineSchema),
+  lines: z.array(purchaseLineSchema).default([]),
   total: money,
-  source: z.enum(['receipt', 'manual']),
+  source: z.enum(['receipt', 'manual', 'import']),
   receiptFileId: z.string().optional(),
   receiptFileIds: z.array(z.string()).optional(),
   createdBy: z.string(),
@@ -278,7 +288,7 @@ export const usagePayload = z.object({
 export type UsageYear = z.infer<typeof usagePayload>;
 
 // ---------- file envelope ----------
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 export const envelope = z.object({
   schemaVersion: z.number().int(),
   updatedAt: isoDateTime,

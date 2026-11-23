@@ -9,6 +9,7 @@ import { normalise } from '../../domain/categorise';
 import type { Recipe } from '../../domain/schemas';
 import { RecipeEditor } from './RecipeEditor';
 import { PlanView } from '../plan/PlanView';
+import { features } from '../../config';
 
 export const IMPORT_PROMPT =
   'Paste the link to a recipe page. I’ll read it, match the ingredients to your items and write clear steps, then you decide whether to save it.';
@@ -94,19 +95,22 @@ export function RecipesScreen() {
       <PageHeader title="Recipes" />
       {/* adding recipes belongs to the list, not on top of the week plan */}
       {view === 'list' && (
-        <div className="grid-2" style={{ margin: '14px 0 12px' }}>
+        <div className={features.assistant ? 'grid-2' : undefined} style={{ margin: '14px 0 12px' }}>
+          {/* importing from a link goes through the Assistant (parked: config.features) */}
+          {features.assistant && (
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              style={{ padding: '0 var(--space-2)' }}
+              onClick={() => assistant.open({ prompt: IMPORT_PROMPT })}
+            >
+              <IconLink />
+              Import from a link
+            </button>
+          )}
           <button
             type="button"
-            className="btn btn-primary btn-block"
-            style={{ padding: '0 var(--space-2)' }}
-            onClick={() => assistant.open({ prompt: IMPORT_PROMPT })}
-          >
-            <IconLink />
-            Import from a link
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline btn-block"
+            className={`btn ${features.assistant ? 'btn-outline' : 'btn-primary'} btn-block`}
             style={{ padding: '0 var(--space-2)' }}
             onClick={() => setWriting(true)}
           >

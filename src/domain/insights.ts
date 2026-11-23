@@ -1,19 +1,21 @@
 // Insights aggregation (6.6). Pure functions over budget and usage files.
 import type { BaseUnit, BudgetFile, CookedEntry, PurchaseLine, UsageFile } from './schemas';
+import { purchaseCategory, purchaseTitle } from './budget';
 import { shiftMonth, weekBucket } from './dates';
 import { round2, round3 } from './format';
 import { toBase } from './units';
 
 export interface Filters {
   person?: string; // member email
+  /** Spending: a budget category. Consumption: an item category. */
   category?: string;
+  /** consumption only (item subcategory) */
   subcategory?: string;
-  store?: string; // spending only
 }
 
+/** Item lines of receipt purchases (consumption: "bought vs used"). */
 export interface SpendLine extends PurchaseLine {
   date: string;
-  store: string;
   spentBy: string;
   purchaseId: string;
 }
@@ -24,12 +26,41 @@ export function spendLines(budgets: BudgetFile[], ym: string, f: Filters): Spend
     for (const p of b.purchases) {
       if (!p.date.startsWith(ym)) continue;
       if (f.person && p.spentBy !== f.person) continue;
-      if (f.store && p.store !== f.store) continue;
       for (const l of p.lines) {
         if (f.category && l.category !== f.category) continue;
         if (f.subcategory && l.subcategory !== f.subcategory) continue;
-        out.push({ ...l, date: p.date, store: p.store, spentBy: p.spentBy, purchaseId: p.id });
+        out.push({ ...l, date: p.date, spentBy: p.spentBy, purchaseId: p.id });
       }
+    }
+  return out;
+}
+
+/** One purchase as spending: its total, budget category and who paid. */
+export interface SpendRow {
+  id: string;
+  date: string;
+  title: string;
+  category: string;
+  spentBy: string;
+  total: number;
+}
+
+export function spendRows(budgets: BudgetFile[], ym: string, f: Filters): SpendRow[] {
+  const out: SpendRow[] = [];
+  for (const b of budgets)
+    for (const p of b.purchases) {
+      if (!p.date.startsWith(ym)) continue;
+      if (f.person && p.spentBy !== f.person) continue;
+      const category = purchaseCategory(p);
+      if (f.category && category !== f.category) continue;
+      out.push({
+        id: p.id,
+        date: p.date,
+        title: purchaseTitle(p),
+        category,
+        spentBy: p.spentBy,
+        total: p.total,
+      });
     }
   return out;
 }
@@ -54,7 +85,7 @@ export function bars<T>(rows: T[], key: (r: T) => string, value: (r: T) => numbe
   return list.map((x) => ({ ...x, share: x.value / total, rel: x.value / max }));
 }
 
-/** Drill-down level: categories -> subcategories of the chosen category -> items of the chosen subcategory. */
+/** Consumption drill-down: categories -> subcategories of the chosen category -> items of the chosen subcategory. */
 export type DrillLevel = 'category' | 'subcategory' | 'item';
 export const drillLevel = (f: Filters): DrillLevel =>
   !f.category ? 'category' : !f.subcategory ? 'subcategory' : 'item';
@@ -78,25 +109,19 @@ export function compare(total: number, prevTotal: number): Comparison {
 export interface SpendingInsights {
   total: number;
   comparison: Comparison;
-  level: DrillLevel;
-  byDrill: Bar[];
+  byCategory: Bar[];
   /** 5 buckets: days 1-7, 8-14, 15-21, 22-28, 29-31 */
   weeks: number[];
   byPerson: Bar[];
-  byStore: Bar[];
-  topItems: {
-    name: string;
-    itemId?: string;
-    value: number;
-    quantity: number;
-    unit: BaseUnit;
-    subcategory: string;
-  }[];
+  /** the month's purchases (filters applied), newest first */
+  purchases: SpendRow[];
   /** contributions this month (person filter applies) */
   moneyIn: number;
   /** last 6 months including this one, oldest first */
   trend: { ym: string; total: number }[];
 }
+
+const sumOf = (rows: SpendRow[]) => round2(rows.reduce((t, r) => t + r.total, 0));
 
 /**
  * `upToDay`: for a month still in progress, compare with the same days of the
@@ -108,43 +133,16 @@ export function spendingInsights(
   f: Filters,
   opts: { upToDay?: number } = {},
 ): SpendingInsights {
-  const lines = spendLines(budgets, ym, f);
-  const total = round2(lines.reduce((t, l) => t + l.price, 0));
-  const prevTotal = round2(
-    spendLines(budgets, shiftMonth(ym, -1), f)
-      .filter((l) => !opts.upToDay || Number(l.date.slice(8, 10)) <= opts.upToDay)
-      .reduce((t, l) => t + l.price, 0),
+  const f2 = { person: f.person, category: f.category };
+  const rows = spendRows(budgets, ym, f2);
+  const total = sumOf(rows);
+  const prevTotal = sumOf(
+    spendRows(budgets, shiftMonth(ym, -1), f2).filter(
+      (r) => !opts.upToDay || Number(r.date.slice(8, 10)) <= opts.upToDay,
+    ),
   );
-  const level = drillLevel(f);
   const weeks = [0, 0, 0, 0, 0];
-  for (const l of lines) weeks[weekBucket(l.date)] += l.price;
-
-  const items = new Map<
-    string,
-    {
-      name: string;
-      itemId?: string;
-      value: number;
-      quantity: number;
-      unit: BaseUnit;
-      subcategory: string;
-    }
-  >();
-  for (const l of lines) {
-    const b = toBase(l.quantity, l.unit);
-    const k = l.itemId ?? `name:${l.name.toLowerCase()}`;
-    const x = items.get(k) ?? {
-      name: l.name,
-      itemId: l.itemId,
-      value: 0,
-      quantity: 0,
-      unit: b.u,
-      subcategory: l.subcategory,
-    };
-    x.value += l.price;
-    if (x.unit === b.u) x.quantity += b.q;
-    items.set(k, x);
-  }
+  for (const r of rows) weeks[weekBucket(r.date)] += r.total;
 
   let moneyIn = 0;
   for (const b of budgets)
@@ -153,49 +151,27 @@ export function spendingInsights(
 
   const trend = Array.from({ length: 6 }, (_, i) => {
     const m = shiftMonth(ym, i - 5);
-    return { ym: m, total: round2(spendLines(budgets, m, f).reduce((t, l) => t + l.price, 0)) };
+    return { ym: m, total: sumOf(spendRows(budgets, m, f2)) };
   });
 
   return {
     total,
     comparison: compare(total, prevTotal),
-    level,
-    byDrill: bars(lines, drillKey(level), (l) => l.price),
+    byCategory: bars(
+      rows,
+      (r) => r.category,
+      (r) => r.total,
+    ),
     weeks: weeks.map(round2),
     byPerson: bars(
-      lines,
-      (l) => l.spentBy,
-      (l) => l.price,
+      rows,
+      (r) => r.spentBy,
+      (r) => r.total,
     ),
-    byStore: bars(
-      lines,
-      (l) => l.store,
-      (l) => l.price,
-    ),
-    topItems: [...items.values()]
-      .map((x) => ({ ...x, value: round2(x.value), quantity: round3(x.quantity) }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8),
+    purchases: rows.slice().sort((a, b) => b.date.localeCompare(a.date)),
     moneyIn: round2(moneyIn),
     trend,
   };
-}
-
-/** Unit price paid over time for one item (per its line unit, normalised to per kg / l / piece). */
-export function priceHistory(budgets: BudgetFile[], match: { itemId?: string; name: string }) {
-  const out: { date: string; store: string; perUnit: number; unit: 'kg' | 'l' | 'pcs' }[] = [];
-  for (const b of budgets)
-    for (const p of b.purchases)
-      for (const l of p.lines) {
-        if (match.itemId ? l.itemId !== match.itemId : l.name.toLowerCase() !== match.name.toLowerCase())
-          continue;
-        const base = toBase(l.quantity, l.unit);
-        if (base.q <= 0) continue;
-        const unit = base.u === 'g' ? 'kg' : base.u === 'ml' ? 'l' : 'pcs';
-        const per = base.u === 'pcs' ? l.price / base.q : (l.price / base.q) * 1000;
-        out.push({ date: p.date, store: p.store, perUnit: round2(per), unit });
-      }
-  return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // ---------- consumption ----------
@@ -205,10 +181,24 @@ const unusedShare = (x: { bought: number; used: number }) =>
 
 export interface UsageInsights {
   totalValue: number;
+  /**
+   * false when nothing used has a known price (prices came from receipt lines,
+   * which the Budget no longer asks for): amounts are counted, not valued
+   */
+  valued: boolean;
   distinctItems: number;
   meals: number;
-  mostUsed: { name: string; itemId: string; quantity: number; unit: BaseUnit; value: number }[];
+  mostUsed: {
+    name: string;
+    itemId: string;
+    quantity: number;
+    unit: BaseUnit;
+    value: number;
+    /** times it was used */
+    times: number;
+  }[];
   level: DrillLevel;
+  /** lei when valued, else times used */
   byDrill: Bar[];
   mostCooked: { recipeId: string; times: number }[];
   /** per item: bought vs used this month, in base units */
@@ -249,21 +239,31 @@ export function usageInsights(
     .filter((c) => c.date.startsWith(ym) && (!f.person || c.by === f.person));
   const byItem = new Map<
     string,
-    { name: string; itemId: string; quantity: number; unit: BaseUnit; value: number }
+    { name: string; itemId: string; quantity: number; unit: BaseUnit; value: number; times: number }
   >();
   for (const e of entries) {
-    const x = byItem.get(e.itemId) ?? { name: e.name, itemId: e.itemId, quantity: 0, unit: e.unit, value: 0 };
+    const x = byItem.get(e.itemId) ?? {
+      name: e.name,
+      itemId: e.itemId,
+      quantity: 0,
+      unit: e.unit,
+      value: 0,
+      times: 0,
+    };
     if (x.unit === e.unit) x.quantity += e.quantity;
     x.value += e.value;
+    x.times++;
     byItem.set(e.itemId, x);
   }
+  const totalValue = round2(entries.reduce((t, e) => t + e.value, 0));
+  const valued = totalValue > 0;
   const level = drillLevel(f);
   const cookedCount = new Map<string, number>();
   for (const c of cooked) cookedCount.set(c.recipeId, (cookedCount.get(c.recipeId) ?? 0) + 1);
 
   // bought this month (same filters, no store filter) vs used
   const bought = new Map<string, { name: string; unit: BaseUnit; q: number }>();
-  for (const l of spendLines(budgets, ym, { ...f, store: undefined })) {
+  for (const l of spendLines(budgets, ym, f)) {
     if (!l.itemId) continue;
     const b = toBase(l.quantity, l.unit);
     const x = bought.get(l.itemId) ?? { name: l.name, unit: b.u, q: 0 };
@@ -289,15 +289,16 @@ export function usageInsights(
     .sort((a, b) => unusedShare(b) - unusedShare(a) || b.bought - a.bought);
 
   return {
-    totalValue: round2(entries.reduce((t, e) => t + e.value, 0)),
+    totalValue,
+    valued,
     distinctItems: new Set(all.map((e) => e.itemId)).size,
     meals: cooked.length,
     mostUsed: [...byItem.values()]
       .map((x) => ({ ...x, value: round2(x.value), quantity: round3(x.quantity) }))
-      .sort((a, b) => b.value - a.value || b.quantity - a.quantity)
+      .sort((a, b) => (valued ? b.value - a.value : b.times - a.times) || b.quantity - a.quantity)
       .slice(0, 8),
     level,
-    byDrill: bars(entries, drillKey(level), (e) => e.value),
+    byDrill: bars(entries, drillKey(level), (e) => (valued ? e.value : 1)),
     mostCooked: [...cookedCount]
       .map(([recipeId, times]) => ({ recipeId, times }))
       .sort((a, b) => b.times - a.times),

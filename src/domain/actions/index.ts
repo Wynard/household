@@ -31,7 +31,12 @@ import {
   updateContribution,
   updatePurchase,
 } from './budget';
+import { importBudget } from './budgetImport';
 import {
+  addBudgetCategory,
+  deleteBudgetCategory,
+  moveBudgetCategory,
+  renameBudgetCategory,
   mergeCategory,
   removeUnusedCategories,
   addUnit,
@@ -73,6 +78,11 @@ export const ACTIONS = {
   adjustPot,
   deleteAdjustment,
   restoreDeleted,
+  importBudget,
+  addBudgetCategory,
+  renameBudgetCategory,
+  deleteBudgetCategory,
+  moveBudgetCategory,
   addPlace,
   renamePlace,
   deletePlace,

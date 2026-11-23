@@ -17,6 +17,7 @@ import {
 import { CategoryPicker } from '../stock/CategoryPicker';
 import { UNITS } from '../../domain/schemas';
 import type { Snapshot } from '../../domain/actions';
+import { budgetCategoryUse } from '../../domain/budget';
 import { ItemEditor } from '../stock/ItemEditor';
 import { RecipeEditor } from '../recipes/RecipeEditor';
 import { ChevronRow, NameEditor, SettingsPage } from './common';
@@ -330,19 +331,26 @@ export function CategoriesTable() {
 }
 
 // ---------- Storage places (drag to reorder) ----------
-export function PlacesTable() {
-  const { snap } = useSnapshot();
-  const { run } = useRun();
-  const [edit, setEdit] = useState<{ old?: string } | null>(null);
+/**
+ * A list of names in a chosen order: drag the grip (pointer capture) or use the
+ * arrow keys on it. `onMove` saves the new position.
+ */
+function ReorderList({
+  names,
+  sub,
+  onOpen,
+  onMove,
+}: {
+  names: string[];
+  sub: (name: string) => string;
+  onOpen: (name: string) => void;
+  onMove: (name: string, index: number, how: 'drag' | 'key') => void;
+}) {
   const [drag, setDrag] = useState<{ name: string; over: number } | null>(null);
   const rows = useRef<(HTMLDivElement | null)[]>([]);
-  if (!snap) return <Loading />;
-  const places = snap.household.places;
-  const ctx = ctxOf(snap);
-
   const indexAt = (y: number) => {
-    let idx = places.length - 1;
-    for (let i = 0; i < places.length; i++) {
+    let idx = names.length - 1;
+    for (let i = 0; i < names.length; i++) {
       const r = rows.current[i]?.getBoundingClientRect();
       if (r && y < r.top + r.height / 2) {
         idx = i;
@@ -351,6 +359,60 @@ export function PlacesTable() {
     }
     return idx;
   };
+  return (
+    <div className="list" style={{ touchAction: drag ? 'none' : undefined }}>
+      {names.map((p, i) => (
+        <div
+          key={p}
+          ref={(el) => {
+            rows.current[i] = el;
+          }}
+          className="row"
+          style={{
+            gap: 0,
+            background: drag?.name === p ? 'var(--surface-2)' : undefined,
+            boxShadow:
+              drag && drag.over === i && drag.name !== p ? 'inset 0 3px 0 var(--primary)' : undefined,
+          }}
+        >
+          <span
+            className="icon-btn grip"
+            role="button"
+            tabIndex={0}
+            aria-label={`Move ${p}. Use the arrow keys, or drag.`}
+            onPointerDown={(e) => {
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              setDrag({ name: p, over: i });
+            }}
+            onPointerMove={(e) => drag && setDrag({ ...drag, over: indexAt(e.clientY) })}
+            onPointerUp={() => {
+              if (drag && drag.over !== names.indexOf(drag.name)) onMove(drag.name, drag.over, 'drag');
+              setDrag(null);
+            }}
+            onPointerCancel={() => setDrag(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowUp' && i > 0) onMove(p, i - 1, 'key');
+              if (e.key === 'ArrowDown' && i < names.length - 1) onMove(p, i + 1, 'key');
+            }}
+          >
+            <IconGrip />
+          </span>
+          <div className="grow">
+            <ChevronRow title={p} sub={sub(p)} onClick={() => onOpen(p)} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function PlacesTable() {
+  const { snap } = useSnapshot();
+  const { run } = useRun();
+  const [edit, setEdit] = useState<{ old?: string } | null>(null);
+  if (!snap) return <Loading />;
+  const places = snap.household.places;
+  const ctx = ctxOf(snap);
 
   return (
     <SettingsPage
@@ -358,55 +420,14 @@ export function PlacesTable() {
       hint="Where things are kept at home. Stock is grouped in this order: drag the handle to reorder."
       add={{ label: 'New place', onClick: () => setEdit({}) }}
     >
-      <div className="list" style={{ touchAction: drag ? 'none' : undefined }}>
-        {places.map((p, i) => {
-          const n = placeUse(ctx, p);
-          return (
-            <div
-              key={p}
-              ref={(el) => {
-                rows.current[i] = el;
-              }}
-              className="row"
-              style={{
-                gap: 0,
-                background: drag?.name === p ? 'var(--surface-2)' : undefined,
-                boxShadow:
-                  drag && drag.over === i && drag.name !== p ? 'inset 0 3px 0 var(--primary)' : undefined,
-              }}
-            >
-              <span
-                className="icon-btn grip"
-                role="button"
-                tabIndex={0}
-                aria-label={`Move ${p}. Use the arrow keys, or drag.`}
-                onPointerDown={(e) => {
-                  (e.target as HTMLElement).setPointerCapture(e.pointerId);
-                  setDrag({ name: p, over: i });
-                }}
-                onPointerMove={(e) => drag && setDrag({ ...drag, over: indexAt(e.clientY) })}
-                onPointerUp={() => {
-                  if (drag && drag.over !== places.indexOf(drag.name))
-                    void run('movePlace', { name: drag.name, index: drag.over }, { toast: 'Order saved' });
-                  setDrag(null);
-                }}
-                onPointerCancel={() => setDrag(null)}
-                onKeyDown={(e) => {
-                  if (e.key === 'ArrowUp' && i > 0)
-                    void run('movePlace', { name: p, index: i - 1 }, { toast: false });
-                  if (e.key === 'ArrowDown' && i < places.length - 1)
-                    void run('movePlace', { name: p, index: i + 1 }, { toast: false });
-                }}
-              >
-                <IconGrip />
-              </span>
-              <div className="grow">
-                <ChevronRow title={p} sub={plural(n, 'item')} onClick={() => setEdit({ old: p })} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <ReorderList
+        names={places}
+        sub={(p) => plural(placeUse(ctx, p), 'item')}
+        onOpen={(p) => setEdit({ old: p })}
+        onMove={(name, index, how) =>
+          void run('movePlace', { name, index }, { toast: how === 'drag' ? 'Order saved' : false })
+        }
+      />
       {edit && (
         <NameEditor
           title={edit.old ? 'Edit storage place' : 'New storage place'}
@@ -431,6 +452,72 @@ export function PlacesTable() {
             edit.old
               ? async () =>
                   !!(await run('deletePlace', { name: edit.old! }, { toast: `${edit.old} deleted` }))
+              : undefined
+          }
+          onClose={() => setEdit(null)}
+        />
+      )}
+    </SettingsPage>
+  );
+}
+
+// ---------- Budget categories ----------
+export function BudgetCategoriesTable() {
+  const { snap } = useSnapshot();
+  const { run } = useRun();
+  const [edit, setEdit] = useState<{ old?: string } | null>(null);
+  if (!snap) return <Loading />;
+  const cats = snap.household.budgetCategories;
+  const budgets = Object.values(snap.budgets);
+  const use = (c: string) => budgetCategoryUse(budgets, c);
+
+  return (
+    <SettingsPage
+      title="Budget categories"
+      hint="What money from the pot is spent on. Adding a purchase shows them in this order: drag the handle to reorder."
+      add={{ label: 'New category', onClick: () => setEdit({}) }}
+    >
+      <ReorderList
+        names={cats}
+        sub={(c) => (use(c) ? plural(use(c), 'purchase') : 'Not used yet')}
+        onOpen={(c) => setEdit({ old: c })}
+        onMove={(name, index, how) =>
+          void run('moveBudgetCategory', { name, index }, { toast: how === 'drag' ? 'Order saved' : false })
+        }
+      />
+      {cats.length === 0 && (
+        <p className="muted" style={{ margin: 0, padding: '18px 16px' }}>
+          None yet. Tap New category to add one, for example Groceries or Rent.
+        </p>
+      )}
+      {edit && (
+        <NameEditor
+          title={edit.old ? 'Edit budget category' : 'New budget category'}
+          initial={edit.old}
+          hint={
+            edit.old && use(edit.old)
+              ? `${plural(use(edit.old), 'purchase')}. Renaming updates them all; renaming it to another category merges the two.`
+              : undefined
+          }
+          existing={edit.old ? [] : cats}
+          guard={
+            edit.old && use(edit.old)
+              ? `Has ${plural(use(edit.old), 'purchase')}, so it can only be renamed or merged.`
+              : null
+          }
+          onSave={async (n) =>
+            edit.old
+              ? !!(await run(
+                  'renameBudgetCategory',
+                  { from: edit.old, to: n },
+                  { toast: (p) => (p.title.startsWith('Merge') ? `Merged into ${n}` : `Renamed to ${n}`) },
+                ))
+              : !!(await run('addBudgetCategory', { name: n }, { toast: `${n} added` }))
+          }
+          onDelete={
+            edit.old
+              ? async () =>
+                  !!(await run('deleteBudgetCategory', { name: edit.old! }, { toast: `${edit.old} deleted` }))
               : undefined
           }
           onClose={() => setEdit(null)}

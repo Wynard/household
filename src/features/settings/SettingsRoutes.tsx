@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { SettingsHome } from './SettingsHome';
 import { ImportList } from './ImportList';
 import {
+  BudgetCategoriesTable,
   CategoriesTable,
   ItemsTable,
   PlacesTable,
@@ -12,6 +13,8 @@ import {
 } from './tables';
 import { DeviceSettings, HouseholdSettings } from './HouseholdSettings';
 import { AppearanceSettings, AssistantSettings, GeminiSettings } from './DeviceParts';
+import { BudgetImport } from './BudgetImport';
+import { features } from '../../config';
 
 /** Settings is a full-screen area (no tab bar or Assistant button). */
 export function SettingsRoutes() {
@@ -26,17 +29,22 @@ export function SettingsRoutes() {
       <Route path="recipe-categories" element={<RecipeCategoriesTable />} />
       <Route path="stores" element={<StoresTable />} />
       <Route path="units" element={<UnitsTable />} />
+      <Route path="budget-categories" element={<BudgetCategoriesTable />} />
+      <Route path="budget-import" element={<BudgetImport />} />
       <Route path="household" element={<HouseholdSettings />} />
       <Route
         path="device"
         element={
           <DeviceSettings>
             <AppearanceSettings />
-            <GeminiSettings />
+            {features.assistant && <GeminiSettings />}
           </DeviceSettings>
         }
       />
-      <Route path="assistant" element={<AssistantSettings />} />
+      <Route
+        path="assistant"
+        element={features.assistant ? <AssistantSettings /> : <Navigate to="/settings" replace />}
+      />
       <Route path="*" element={<Navigate to="/settings" replace />} />
     </Routes>
   );

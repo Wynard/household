@@ -16,8 +16,8 @@ import {
   type ShoppingFile,
   type UsageFile,
 } from './schemas';
-import { DEFAULT_PLACES, DEFAULT_RECIPE_CATEGORIES } from './defaults';
-import { migrateV1toV2, migrateV2toV3, migrateV3toV4 } from '../storage/migrations';
+import { DEFAULT_BUDGET_CATEGORIES, DEFAULT_PLACES, DEFAULT_RECIPE_CATEGORIES } from './defaults';
+import { migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5 } from '../storage/migrations';
 
 export type StaticFile = 'household' | 'items' | 'recipes' | 'plan' | 'shopping';
 export type BudgetFileName = `budget-${number}`;
@@ -95,6 +95,7 @@ export function emptyFile(f: DataFile, by: string, opts: { openingBalance?: numb
         stores: [],
         recipeCategories: DEFAULT_RECIPE_CATEGORIES,
         units: [],
+        budgetCategories: DEFAULT_BUDGET_CATEGORIES,
         years: [],
       } satisfies HouseholdFile;
     case 'items':
@@ -117,6 +118,7 @@ const MIGRATIONS: Record<number, (raw: Record<string, unknown>, f: DataFile) => 
   1: migrateV1toV2,
   2: migrateV2toV3,
   3: migrateV3toV4,
+  4: (raw, f) => migrateV4toV5(raw, f, DEFAULT_BUDGET_CATEGORIES),
 };
 
 export class DataValidationError extends Error {

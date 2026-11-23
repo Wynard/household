@@ -10,6 +10,7 @@ import type { Member } from '../../domain/schemas';
 import { SettingsPage } from './common';
 import { prefs } from '../../app/prefs';
 import { driveFolderLink } from '../../storage/drive';
+import { features } from '../../config';
 
 export function HouseholdSettings() {
   const { snap } = useSnapshot();
@@ -71,7 +72,8 @@ export function HouseholdSettings() {
         ))}
       </div>
       <p className="small muted">
-        People come from Google sign-in. Each of you keeps your own Gemini key on your own phone.
+        People come from Google sign-in.
+        {features.assistant && ' Each of you keeps your own Gemini key on your own phone.'}
       </p>
       {editing && <MemberSheet member={editing} onClose={() => setEditing(null)} />}
     </SettingsPage>
@@ -136,8 +138,9 @@ export function DeviceSettings({ children }: { children?: React.ReactNode }) {
         <span className="small muted">Signed in as {session.email}</span>
         <DeleteButton label="Sign out of this phone" onDelete={session.signOut} />
         <span className="small muted">
-          Signing out removes the household link, your Gemini key and the assistant conversation from this
-          phone.
+          {features.assistant
+            ? 'Signing out removes the household link, your Gemini key and the assistant conversation from this phone.'
+            : 'Signing out removes the household link from this phone.'}
         </span>
       </div>
     </SettingsPage>

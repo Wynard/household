@@ -7,6 +7,7 @@ import { defineAction, type Ctx } from './types';
 import { O, type Op } from '../ops';
 import { plural } from '../format';
 import { budgetFileName, usageFileName } from '../files';
+import { budgetCategoryUse } from '../budget';
 import { MEASURE_UNITS, UNITS, memberSchema, type PurchaseLine } from '../schemas';
 
 const name = z.string().trim().min(1, 'needs a name');
@@ -312,6 +313,81 @@ export const deleteStore = defineAction({
       ops: [O.household.listRemove('stores', name)],
       danger: true,
     };
+  },
+});
+
+// ---------- budget categories ----------
+// What pot money is spent on. Renaming updates every purchase; renaming to a
+// category that exists merges the two. Deleting is blocked while purchases use it.
+export const addBudgetCategory = defineAction({
+  name: 'addBudgetCategory',
+  input: z.object({ name }),
+  plan(ctx, { name }) {
+    const existing = ctx.snap.household.budgetCategories.find((c) => same(c, name));
+    if (existing)
+      return { title: `New category ${name}`, lines: [], ops: [], blocked: 'That category already exists.' };
+    return {
+      title: `New budget category: ${name}`,
+      lines: [],
+      ops: [O.household.listAdd('budgetCategories', name)],
+      result: name,
+    };
+  },
+});
+
+export const renameBudgetCategory = defineAction({
+  name: 'renameBudgetCategory',
+  input: z.object({ from: z.string(), to: name }),
+  plan(ctx, { from, to }) {
+    if (from === to) return { title: 'Rename category', lines: [], ops: [], blocked: 'Type a new name.' };
+    const list = ctx.snap.household.budgetCategories;
+    if (!list.includes(from))
+      return { title: 'Rename category', lines: [], ops: [], blocked: `${from} was already removed.` };
+    const target = list.find((c) => c !== from && same(c, to)) ?? to;
+    const merging = target !== to || (list.includes(to) && to !== from);
+    const ops: Op[] = [O.household.listRename('budgetCategories', from, target)];
+    let n = 0;
+    for (const b of Object.values(ctx.snap.budgets)) {
+      const f = O.budget(budgetFileName(b.year));
+      for (const p of b.purchases)
+        if (p.category === from) {
+          ops.push(f.patchPurchase(p.id, { category: target }));
+          n++;
+        }
+    }
+    return {
+      title: merging ? `Merge ${from} into ${target}` : `Rename ${from} to ${to}`,
+      lines: n ? [`Updates ${plural(n, 'purchase')}`] : [],
+      ops,
+    };
+  },
+});
+
+export const deleteBudgetCategory = defineAction({
+  name: 'deleteBudgetCategory',
+  input: z.object({ name: z.string() }),
+  plan(ctx, { name }) {
+    const n = budgetCategoryUse(Object.values(ctx.snap.budgets), name);
+    if (n)
+      return {
+        title: `Delete ${name}`,
+        lines: [],
+        ops: [],
+        blocked: `${plural(n, 'purchase')} ${n === 1 ? 'is' : 'are'} in ${name}. Rename it to another category to merge them.`,
+      };
+    return {
+      title: `Delete ${name}`,
+      lines: [],
+      ops: [O.household.listRemove('budgetCategories', name)],
+    };
+  },
+});
+
+export const moveBudgetCategory = defineAction({
+  name: 'moveBudgetCategory',
+  input: z.object({ name: z.string(), index: z.number().int().min(0) }),
+  plan(_ctx, { name, index }) {
+    return { title: `Move ${name}`, lines: [], ops: [O.household.listMove('budgetCategories', name, index)] };
   },
 });
 

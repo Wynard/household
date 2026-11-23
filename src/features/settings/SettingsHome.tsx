@@ -9,6 +9,7 @@ import { describeCounts } from '../../domain/actions/settings';
 import { parseFile, type DataFile } from '../../domain/files';
 import { todayISO } from '../../domain/dates';
 import { ChevronRow, SettingsPage } from './common';
+import { features } from '../../config';
 import { snapshotToFiles } from '../../domain/actions';
 
 export function SettingsHome() {
@@ -82,11 +83,14 @@ export function SettingsHome() {
           sub={plural(h.recipeCategories.length, 'category', 'categories')}
           onClick={() => nav('/settings/recipe-categories')}
         />
-        <ChevronRow
-          title="Stores"
-          sub={plural(h.stores.length, 'store')}
-          onClick={() => nav('/settings/stores')}
-        />
+        {/* stores only matter for receipt scanning (the Assistant) */}
+        {features.assistant && (
+          <ChevronRow
+            title="Stores"
+            sub={plural(h.stores.length, 'store')}
+            onClick={() => nav('/settings/stores')}
+          />
+        )}
       </div>
       <h2 className="group-title">Household</h2>
       <div className="list">
@@ -96,23 +100,46 @@ export function SettingsHome() {
           onClick={() => nav('/settings/household')}
         />
         <ChevronRow
-          title="This phone"
-          sub="Appearance, Gemini key, sign out"
-          onClick={() => nav('/settings/device')}
+          title="Budget categories"
+          sub={
+            h.budgetCategories.length
+              ? `${h.budgetCategories.slice(0, 3).join(', ')}${h.budgetCategories.length > 3 ? '…' : ''}`
+              : 'None yet'
+          }
+          onClick={() => nav('/settings/budget-categories')}
         />
         <ChevronRow
-          title="Assistant"
-          sub="What it sends to Gemini, turn it off on this phone"
-          onClick={() => nav('/settings/assistant')}
+          title="This phone"
+          sub={features.assistant ? 'Appearance, Gemini key, sign out' : 'Appearance, sign out'}
+          onClick={() => nav('/settings/device')}
         />
+        {features.assistant ? (
+          <ChevronRow
+            title="Assistant"
+            sub="What it sends to Gemini, turn it off on this phone"
+            onClick={() => nav('/settings/assistant')}
+          />
+        ) : (
+          <div className="list-row" aria-disabled="true" style={{ padding: '14px 12px 14px 16px' }}>
+            <span className="grow stack" style={{ gap: 0 }}>
+              <span className="title muted">Assistant</span>
+              <span className="sub">Not available at the moment</span>
+            </span>
+          </div>
+        )}
       </div>
-      <h2 className="group-title">Backup</h2>
+      <h2 className="group-title">Backup and import</h2>
       <div className="list">
         <ChevronRow title="Export everything" sub="One file with all of your data" onClick={exportAll} />
         <ChevronRow
           title="Import from a backup"
           sub="Shows what will change before replacing anything"
           onClick={() => setImporting(true)}
+        />
+        <ChevronRow
+          title="Import budget history"
+          sub="Rows from an old budget spreadsheet"
+          onClick={() => nav('/settings/budget-import')}
         />
       </div>
       {importing && <ImportSheet onClose={() => setImporting(false)} />}

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { DecimalInput, Field } from '../../ui/controls';
 import { IconCheck } from '../../ui/icons';
-import { googleConfigured } from '../../config';
+import { features, googleConfigured } from '../../config';
 import { parseDecimal, money } from '../../domain/format';
 import type { GoogleAuth } from '../../auth/google';
 import { DriveAdapter, driveFolderLink } from '../../storage/drive';
@@ -410,12 +410,21 @@ export function JoinScreen({
 
 export function DoneScreen({ onDone }: { onDone: () => void }) {
   const items = [
-    [
-      'Add your Gemini key',
-      'Settings › This phone. Needed for receipt scanning, recipe import and the Assistant. Each of you uses your own.',
-    ],
+    ...(features.assistant
+      ? [
+          [
+            'Add your Gemini key',
+            'Settings › This phone. Needed for receipt scanning, recipe import and the Assistant. Each of you uses your own.',
+          ],
+        ]
+      : []),
     ['Install the app', 'Android: Chrome menu › Install app. iPhone: Safari › Share › Add to Home Screen.'],
-    ['Start with what you have', 'Scan your next receipt with the Assistant, or add a few items in Stock.'],
+    [
+      'Start with what you have',
+      features.assistant
+        ? 'Scan your next receipt with the Assistant, or add a few items in Stock.'
+        : 'Add a few items in Stock, or import your shopping list in Settings.',
+    ],
   ];
   return (
     <OnboardingFrame>

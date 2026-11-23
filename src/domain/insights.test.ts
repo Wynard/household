@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compare, drillLevel, priceHistory, spendingInsights, usageInsights } from './insights';
+import { compare, drillLevel, spendingInsights, usageInsights } from './insights';
 import type { BudgetFile, UsageFile } from './schemas';
 
 const env = { schemaVersion: 1, updatedAt: 'x', updatedBy: 'x' };
@@ -27,10 +27,12 @@ const purchase = (
   spentBy: string,
   store: string,
   lines: ReturnType<typeof line>[],
+  category?: string,
 ) => ({
   id,
   date,
   store,
+  ...(category ? { category } : {}),
   spentBy,
   lines,
   total: lines.reduce((t, l) => t + l.price, 0),
@@ -60,6 +62,37 @@ const budget: BudgetFile = {
     purchase('p4', '2026-10-30', 'b', 'Lidl', [line('Milk', 15, 'Dairy', 'Milk', 1, 'l', 'milk')]),
   ],
 };
+// the same month as the Budget screen saves it: totals with a budget category
+const simple = (
+  id: string,
+  date: string,
+  spentBy: string,
+  category: string,
+  total: number,
+  purpose?: string,
+) => ({
+  id,
+  date,
+  category,
+  spentBy,
+  ...(purpose ? { purpose } : {}),
+  lines: [],
+  total,
+  source: 'manual' as const,
+  createdBy: 'x',
+  createdAt: date,
+});
+const totals: BudgetFile = {
+  ...budget,
+  purchases: [
+    simple('s1', '2026-09-05', 'a', 'Groceries', 100),
+    simple('s2', '2026-10-01', 'a', 'Rent', 2000),
+    simple('s3', '2026-10-03', 'b', 'Groceries', 150, 'Market'),
+    simple('s4', '2026-10-20', 'a', 'Groceries', 50),
+    // saved before budget categories existed
+    purchase('p9', '2026-10-21', 'b', 'Lidl', [line('Milk', 20, 'Dairy', 'Milk', 2, 'l', 'milk')]),
+  ],
+};
 
 describe('spending insights', () => {
   it('totals, compares with the previous month and buckets by week', () => {
@@ -70,34 +103,40 @@ describe('spending insights', () => {
     expect(s.moneyIn).toBe(900);
   });
 
-  it('drills down category -> subcategory -> item', () => {
-    expect(drillLevel({})).toBe('category');
-    expect(spendingInsights([budget], '2026-10', {}).byDrill.map((b) => [b.key, b.value])).toEqual([
-      ['Dairy', 65],
-      ['Produce', 10],
+  it('groups whole purchases by budget category; older ones show as No category', () => {
+    const s = spendingInsights([totals], '2026-10', {});
+    expect(s.total).toBe(2220);
+    expect(s.byCategory.map((b) => [b.key, b.value])).toEqual([
+      ['Rent', 2000],
+      ['Groceries', 200],
+      ['No category', 20],
     ]);
-    const sub = spendingInsights([budget], '2026-10', { category: 'Dairy' });
-    expect(sub.level).toBe('subcategory');
-    expect(sub.byDrill.map((b) => b.key)).toEqual(['Milk', 'Cheese']);
-    const items = spendingInsights([budget], '2026-10', { category: 'Dairy', subcategory: 'Milk' });
-    expect(items.level).toBe('item');
-    expect(items.byDrill).toHaveLength(1);
-    expect(items.byDrill[0]).toMatchObject({ key: 'Milk', value: 35, share: 1, rel: 1 });
+    expect(s.byPerson.map((b) => [b.key, b.value])).toEqual([
+      ['a', 2050],
+      ['b', 170],
+    ]);
   });
 
-  it('applies person and store filters everywhere, including the comparison', () => {
+  it('a category filter lists its purchases, newest first, and compares like with like', () => {
+    const s = spendingInsights([totals], '2026-10', { category: 'Groceries' });
+    expect(s.total).toBe(200);
+    expect(s.comparison.prevTotal).toBe(100);
+    expect(s.purchases.map((p) => [p.id, p.title])).toEqual([
+      ['s4', 'Groceries'],
+      ['s3', 'Market'],
+    ]);
+    expect(s.trend.slice(-2).map((t) => t.total)).toEqual([100, 200]);
+  });
+
+  it('applies the person filter everywhere, including the comparison and money in', () => {
     const s = spendingInsights([budget], '2026-10', { person: 'a' });
     expect(s.total).toBe(50);
     expect(s.comparison.prevTotal).toBe(50);
     expect(s.moneyIn).toBe(500);
-    const lidl = spendingInsights([budget], '2026-10', { store: 'Lidl' });
-    expect(lidl.byStore.map((b) => b.key)).toEqual(['Lidl']);
-    expect(lidl.total).toBe(65);
   });
 
-  it('top items with quantity bought in base units, and a 6-month trend', () => {
+  it('has a 6-month trend', () => {
     const s = spendingInsights([budget], '2026-10', {});
-    expect(s.topItems[0]).toMatchObject({ name: 'Milk', value: 35, quantity: 3000, unit: 'ml' });
     expect(s.trend.map((t) => t.ym)).toEqual([
       '2026-05',
       '2026-06',
@@ -113,12 +152,6 @@ describe('spending insights', () => {
     expect(compare(10, 0)).toEqual({ pct: null, direction: 'none', prevTotal: 0 });
     expect(compare(10, 10).direction).toBe('same');
     expect(compare(5, 10)).toMatchObject({ pct: 50, direction: 'less' });
-  });
-
-  it('price history per kg / l / piece', () => {
-    expect(priceHistory([budget], { itemId: 'milk', name: 'Milk' }).map((p) => p.perUnit)).toEqual([
-      12.5, 10, 15,
-    ]);
   });
 });
 
@@ -176,6 +209,8 @@ describe('usage insights', () => {
   };
 
   it('value used, distinct items, meals, most used and most cooked', () => {
+    expect(drillLevel({})).toBe('category');
+    expect(drillLevel({ category: 'Dairy' })).toBe('subcategory');
     const u = usageInsights([usage], [budget], '2026-10', {});
     expect(u).toMatchObject({ totalValue: 20, distinctItems: 2, meals: 2 });
     expect(u.mostUsed[0]).toMatchObject({ name: 'Milk', quantity: 1500, unit: 'ml', value: 15 });
@@ -192,6 +227,18 @@ describe('usage insights', () => {
   it('filters by person', () => {
     const u = usageInsights([usage], [budget], '2026-10', { person: 'b' });
     expect(u).toMatchObject({ totalValue: 10, meals: 1 });
+  });
+
+  it('counts uses instead of lei when nothing has a price', () => {
+    const free: UsageFile = { ...usage, usage: usage.usage.map((e) => ({ ...e, value: 0 })) };
+    const u = usageInsights([free], [totals], '2026-10', {});
+    expect(u.valued).toBe(false);
+    expect(u.mostUsed[0]).toMatchObject({ name: 'Milk', times: 2 });
+    expect(u.byDrill.map((b) => [b.key, b.value])).toEqual([
+      ['Dairy', 2],
+      ['Produce', 1],
+    ]);
+    expect(usageInsights([usage], [budget], '2026-10', {}).valued).toBe(true);
   });
 });
 

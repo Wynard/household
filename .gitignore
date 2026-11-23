@@ -18,6 +18,10 @@ files.zip
 .claude/settings.local.json
 private/
 household-backup-*.json
+# spreadsheets with real money data (budget history imports)
+*.xlsx
+*.xls
+*.ods
 
 # Logs and editor noise
 *.log

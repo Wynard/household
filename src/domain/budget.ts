@@ -30,10 +30,23 @@ export type LedgerEntry =
   | { kind: 'out'; id: string; date: string; time?: string; by: string; amount: number; p: Purchase }
   | { kind: 'adj'; id: string; date: string; time?: string; by: string; amount: number; a: PotAdjustment };
 
+/** Shown for purchases saved before budget categories existed. */
+export const NO_CATEGORY = 'No category';
+export const purchaseCategory = (p: Purchase) => p.category ?? NO_CATEGORY;
+/** "Electricity for June", else the store, else the category. */
+export const purchaseTitle = (p: Purchase) => p.purpose || p.store || purchaseCategory(p);
+
+/**
+ * Order within a day: the time typed on a purchase, else when it was saved
+ * (to the millisecond, so a whole imported sheet keeps its row order).
+ */
+const orderKey = (date: string, time: string | undefined, createdAt: string | undefined) =>
+  `${date} ${time ?? createdAt?.slice(11, 23) ?? ''}`;
+
 /** Chronological ledger (oldest first) with the pot balance after each row. */
 export function ledger(budgets: BudgetFile[]): (LedgerEntry & { balanceAfter: number })[] {
   const sorted = budgets.slice().sort((a, b) => a.year - b.year);
-  const rows: LedgerEntry[] = [];
+  const rows: (LedgerEntry & { key: string })[] = [];
   for (const b of sorted) {
     for (const c of b.contributions)
       rows.push({
@@ -44,9 +57,19 @@ export function ledger(budgets: BudgetFile[]): (LedgerEntry & { balanceAfter: nu
         amount: c.amount,
         c,
         time: c.createdAt.slice(11, 16),
+        key: orderKey(c.date, undefined, c.createdAt),
       });
     for (const p of b.purchases)
-      rows.push({ kind: 'out', id: p.id, date: p.date, time: p.time, by: p.spentBy, amount: p.total, p });
+      rows.push({
+        kind: 'out',
+        id: p.id,
+        date: p.date,
+        time: p.time,
+        by: p.spentBy,
+        amount: p.total,
+        p,
+        key: orderKey(p.date, p.time, p.createdAt),
+      });
     for (const a of b.adjustments)
       rows.push({
         kind: 'adj',
@@ -56,11 +79,12 @@ export function ledger(budgets: BudgetFile[]): (LedgerEntry & { balanceAfter: nu
         amount: a.amount,
         a,
         time: a.createdAt?.slice(11, 16),
+        key: orderKey(a.date, undefined, a.createdAt),
       });
   }
-  rows.sort((x, y) => (x.date + (x.time ?? '00:00')).localeCompare(y.date + (y.time ?? '00:00')));
+  rows.sort((x, y) => x.key.localeCompare(y.key));
   let bal = sorted[0]?.openingBalance ?? 0;
-  return rows.map((r) => {
+  return rows.map(({ key: _key, ...r }) => {
     bal += r.kind === 'out' ? -r.amount : r.amount;
     return { ...r, balanceAfter: round2(bal) };
   });
@@ -75,6 +99,37 @@ export function balanceBefore(budgets: BudgetFile[], ym: string): number {
     bal = r.balanceAfter;
   }
   return round2(bal);
+}
+
+/**
+ * Descriptions used before in a category, most used first (for one-tap
+ * suggestions when adding a purchase).
+ */
+export function recentDescriptions(budgets: BudgetFile[], category: string, limit = 4): string[] {
+  const count = new Map<string, { text: string; n: number; last: string }>();
+  for (const b of budgets)
+    for (const p of b.purchases) {
+      if (p.category !== category || !p.purpose?.trim()) continue;
+      const k = p.purpose.trim().toLowerCase();
+      const x = count.get(k) ?? { text: p.purpose.trim(), n: 0, last: '' };
+      x.n++;
+      if (p.date >= x.last) {
+        x.last = p.date;
+        x.text = p.purpose.trim(); // the latest spelling
+      }
+      count.set(k, x);
+    }
+  return [...count.values()]
+    .sort((a, b) => b.n - a.n || b.last.localeCompare(a.last))
+    .slice(0, limit)
+    .map((x) => x.text);
+}
+
+/** Purchases per budget category (for Settings: what can be deleted). */
+export function budgetCategoryUse(budgets: BudgetFile[], category: string): number {
+  let n = 0;
+  for (const b of budgets) for (const p of b.purchases) if (p.category === category) n++;
+  return n;
 }
 
 export interface MonthSummary {

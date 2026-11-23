@@ -5,6 +5,7 @@ import {
   DEFAULT_CATEGORIES,
   DEFAULT_PLACES,
   DEFAULT_RECIPE_CATEGORIES,
+  DEFAULT_BUDGET_CATEGORIES,
   MEMBER_COLORS,
 } from '../domain/defaults';
 import type { DataFile } from '../domain/files';
@@ -637,6 +638,24 @@ const P_SEED: PSeed[] = [
   ],
 ];
 
+/** Purchases saved as just a total (how the Budget screen adds them). */
+const SIMPLE_SEED: [
+  mo: number,
+  day: number,
+  by: 'A' | 'M',
+  category: string,
+  purpose: string,
+  total: number,
+][] = [
+  [-2, 12, 'M', 'Utilities', 'Electricity', 182.4],
+  [-2, 20, 'A', 'Pets', 'Cat food', 96],
+  [-1, 10, 'M', 'Utilities', 'Internet', 40],
+  [-1, 12, 'M', 'Utilities', 'Electricity', 171.9],
+  [-1, 18, 'A', 'Home', 'Laundry basket', 89],
+  [0, 1, 'M', 'Utilities', 'Internet', 40],
+  [0, 1, 'A', 'Health', 'Pharmacy', 64.5],
+];
+
 /** Categories for purchase lines that aren't catalog items. */
 const EXTRA_LINE_CATS: Record<string, [string, string]> = {
   Watermelon: [V, 'Fruit'],
@@ -690,6 +709,8 @@ export function buildSeed(today = todayISO()): Partial<Record<DataFile, unknown>
       date,
       time,
       store,
+      // older purchases scanned from receipts: item lines plus a budget category
+      category: 'Groceries',
       spentBy,
       ...(purpose ? { purpose } : {}),
       lines: pl,
@@ -698,6 +719,23 @@ export function buildSeed(today = todayISO()): Partial<Record<DataFile, unknown>
       createdBy: nameOf(spentBy),
       createdAt: `${date}T${time}:00.000Z`,
     } satisfies Purchase;
+  });
+
+  SIMPLE_SEED.forEach(([mo, day, by, category, purpose, total], i) => {
+    const date = dateFor(mo, day, today);
+    const spentBy = by === 'A' ? ANA : MIHAI;
+    purchases.push({
+      id: `s${i}`,
+      date,
+      category,
+      spentBy,
+      purpose,
+      lines: [],
+      total,
+      source: 'manual',
+      createdBy: nameOf(spentBy),
+      createdAt: `${date}T19:00:00.000Z`,
+    });
   });
 
   // last price per item
@@ -709,7 +747,7 @@ export function buildSeed(today = todayISO()): Partial<Record<DataFile, unknown>
           amount: Math.round((l.price / l.quantity) * 100) / 100,
           per: l.unit,
           date: p.date,
-          store: p.store,
+          store: p.store ?? '',
         };
     }
   }
@@ -888,6 +926,7 @@ export function buildSeed(today = todayISO()): Partial<Record<DataFile, unknown>
       places: DEFAULT_PLACES,
       stores,
       recipeCategories: DEFAULT_RECIPE_CATEGORIES,
+      budgetCategories: DEFAULT_BUDGET_CATEGORIES,
       years,
     },
     items: { ...env(), items },

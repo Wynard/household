@@ -15,28 +15,34 @@ import {
   SearchField,
 } from '../../ui/controls';
 import { IconReceipt } from '../../ui/icons';
-import { personDot, personKey } from '../../ui/person';
+import { personDot } from '../../ui/person';
 import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
-import { ledger, monthSummary, potBalance, type LedgerEntry } from '../../domain/budget';
+import {
+  NO_CATEGORY,
+  ledger,
+  monthSummary,
+  potBalance,
+  purchaseCategory,
+  purchaseTitle,
+  type LedgerEntry,
+} from '../../domain/budget';
 import {
   dayLabel,
   catLabel,
   money,
+  moneyInput,
   monthLabel,
   monthName,
-  num,
   parseDecimal,
-  plural,
   qty as fmtQty,
   unitPriceLabel,
 } from '../../domain/format';
 import { currentMonth, shiftMonth, todayISO } from '../../domain/dates';
 import { normalise } from '../../domain/categorise';
-import { bars } from '../../domain/insights';
 import { isAssistantActor, type Snapshot } from '../../domain/actions';
 import type { Contribution, Member } from '../../domain/schemas';
-import { PurchaseEditor, draftFromPurchase } from './PurchaseEditor';
+import { PurchaseSheet } from './PurchaseSheet';
 import { PhotoNotSharedError, driveFileLink } from '../../storage/drive';
 
 type Row = LedgerEntry & { balanceAfter: number };
@@ -65,7 +71,12 @@ function auditText(r: Row): string {
     'createdBy' in src && src.createdBy
       ? `Added by ${src.createdBy} on ${shortDate(src.createdAt ?? '')}`
       : '';
-  const how = r.kind === 'out' ? (r.p.source === 'receipt' ? ' from a receipt scan' : ' by hand') : '';
+  const how =
+    r.kind === 'out' && r.p.source === 'receipt'
+      ? ' from a receipt scan'
+      : r.kind === 'out' && r.p.source === 'import'
+        ? ' from the old spreadsheet'
+        : '';
   const edited = src.editedBy ? `, edited by ${src.editedBy} on ${shortDate(src.editedAt ?? '')}` : '';
   return `${created}${how}${edited}`;
 }
@@ -82,7 +93,6 @@ export function BudgetScreen() {
   const [money_, setMoney] = useState<Contribution | 'new' | null>(null);
   const [purchase, setPurchase] = useState<string | 'new' | null>(null);
   const [adjust, setAdjust] = useState(false);
-  const [person, setPerson] = useState<string | null>(null);
   const [catPick, setCatPick] = useState(false);
   const [photo, setPhoto] = useState<string[] | null>(null);
 
@@ -102,15 +112,14 @@ export function BudgetScreen() {
       if (filter.kind === 'in') return r.kind === 'in';
       if (filter.kind === 'out') return r.kind === 'out';
       if (filter.kind === 'person') return r.by === filter.email;
-      if (filter.kind === 'category')
-        return r.kind === 'out' && r.p.lines.some((l) => l.category === filter.name);
+      if (filter.kind === 'category') return r.kind === 'out' && purchaseCategory(r.p) === filter.name;
       return true;
     })
     .filter((r) => {
       if (!nq) return true;
       if (r.kind === 'out')
         return normalise(
-          `${r.p.store} ${r.p.purpose ?? ''} ${r.p.lines.map((l) => l.name).join(' ')}`,
+          `${r.p.purpose ?? ''} ${r.p.store ?? ''} ${purchaseCategory(r.p)} ${memberOf(snap, r.by).name} ${r.p.lines.map((l) => l.name).join(' ')}`,
         ).includes(nq);
       if (r.kind === 'in') return normalise(`${r.c.note ?? ''} ${memberOf(snap, r.by).name}`).includes(nq);
       return normalise(r.a.reason).includes(nq);
@@ -125,6 +134,10 @@ export function BudgetScreen() {
 
   const purchaseRow =
     purchase && purchase !== 'new' ? rows.find((r) => r.kind === 'out' && r.id === purchase) : undefined;
+  const pickable = [
+    ...snap.household.budgetCategories,
+    ...(rows.some((r) => r.kind === 'out' && !r.p.category) ? [NO_CATEGORY] : []),
+  ];
 
   return (
     <>
@@ -221,7 +234,7 @@ export function BudgetScreen() {
       <SearchField
         style={{ marginTop: 10 }}
         aria-label="Search history"
-        placeholder="Search all months, by item or store"
+        placeholder="Search all months"
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -248,7 +261,7 @@ export function BudgetScreen() {
               void run(
                 name,
                 { id: r.id },
-                { toast: r.kind === 'out' ? `${r.p.store} purchase deleted` : 'Deleted' },
+                { toast: r.kind === 'out' ? `${purchaseTitle(r.p)} deleted` : 'Deleted' },
               );
               setOpen(null);
             }}
@@ -272,6 +285,8 @@ export function BudgetScreen() {
             {deleted.map((x) => {
               const s = x.snapshot as {
                 store?: string;
+                purpose?: string;
+                category?: string;
                 total?: number;
                 amount?: number;
                 by?: string;
@@ -282,7 +297,7 @@ export function BudgetScreen() {
                   <span className="grow stack" style={{ gap: 0 }}>
                     <span className="bold">
                       {x.kind === 'purchase'
-                        ? `${s.store}, ${money(s.total ?? 0)}`
+                        ? `${s.purpose || s.store || s.category || 'Purchase'}, ${money(s.total ?? 0)}`
                         : x.kind === 'contribution'
                           ? `${memberOf(snap, s.by ?? '').name} added ${money(s.amount ?? 0)}`
                           : `Adjustment ${money(s.amount ?? 0, { sign: true })}`}
@@ -319,27 +334,30 @@ export function BudgetScreen() {
         />
       )}
       {purchase === 'new' && (
-        <PurchaseEditor onClose={() => setPurchase(null)} onSaved={() => setYm(currentMonth())} />
+        <PurchaseSheet onClose={() => setPurchase(null)} onSaved={(d) => setYm(d.slice(0, 7))} />
       )}
       {purchaseRow && purchaseRow.kind === 'out' && (
-        <PurchaseEditor initial={draftFromPurchase(purchaseRow.p)} onClose={() => setPurchase(null)} />
+        <PurchaseSheet
+          purchase={purchaseRow.p}
+          onClose={() => setPurchase(null)}
+          onSaved={(d) => setYm(d.slice(0, 7))}
+        />
       )}
       {adjust && <AdjustSheet onClose={() => setAdjust(false)} />}
-      {person && <PersonSheet email={person} ym={ym} onClose={() => setPerson(null)} />}
       {catPick && (
-        <Sheet onClose={() => setCatPick(false)} title="Show purchases with" labelledBy="bcat-title">
+        <Sheet onClose={() => setCatPick(false)} title="Show purchases in" labelledBy="bcat-title">
           <div className="grid-2">
-            {snap.household.categories.map((c) => (
+            {pickable.map((c) => (
               <button
-                key={c.name}
+                key={c}
                 type="button"
                 className="cat-opt"
                 onClick={() => {
-                  setFilter({ kind: 'category', name: c.name });
+                  setFilter({ kind: 'category', name: c });
                   setCatPick(false);
                 }}
               >
-                {c.name}
+                {c}
               </button>
             ))}
           </div>
@@ -371,12 +389,13 @@ function LedgerRow({
   const via =
     (r.kind === 'out' && isAssistantActor(r.p.createdBy)) ||
     (r.kind === 'in' && isAssistantActor(r.c.createdBy));
-  const title = r.kind === 'in' ? `${m.name} added money` : r.kind === 'out' ? r.p.store : 'Pot adjustment';
+  const title =
+    r.kind === 'in' ? `${m.name} added money` : r.kind === 'out' ? purchaseTitle(r.p) : 'Pot adjustment';
   const sub =
     r.kind === 'in'
       ? r.c.note || 'No note'
       : r.kind === 'out'
-        ? `Spent by ${m.name}${r.p.time ? `, ${r.p.time}` : ''}${r.p.purpose ? `, ${r.p.purpose.toLowerCase()}` : ''}`
+        ? `${purchaseTitle(r.p) === purchaseCategory(r.p) ? '' : `${purchaseCategory(r.p)} · `}Paid by ${m.name}`
         : r.a.reason;
   const photos =
     r.kind === 'out' ? (r.p.receiptFileIds ?? (r.p.receiptFileId ? [r.p.receiptFileId] : [])) : [];
@@ -428,12 +447,14 @@ function LedgerRow({
                 </span>
               </div>
             ))}
-          {r.kind === 'out' && Math.abs(r.p.lines.reduce((t, l) => t + l.price, 0) - r.p.total) > 0.009 && (
-            <span className="small muted">
-              Receipt total {money(r.p.total)} (lines add up to{' '}
-              {money(r.p.lines.reduce((t, l) => t + l.price, 0))})
-            </span>
-          )}
+          {r.kind === 'out' &&
+            r.p.lines.length > 0 &&
+            Math.abs(r.p.lines.reduce((t, l) => t + l.price, 0) - r.p.total) > 0.009 && (
+              <span className="small muted">
+                Receipt total {money(r.p.total)} (lines add up to{' '}
+                {money(r.p.lines.reduce((t, l) => t + l.price, 0))})
+              </span>
+            )}
           {photos.length > 0 && (
             <button
               type="button"
@@ -487,7 +508,7 @@ export function MoneySheet({
   const { email: meEmail } = useSession();
   const members = snap?.household.members ?? [];
   const src = entry ?? prefill;
-  const [amount, setAmount] = useState(src?.amount ? num(src.amount) : '');
+  const [amount, setAmount] = useState(src?.amount ? moneyInput(src.amount) : '');
   const [by, setBy] = useState(src?.by ?? meEmail);
   const [date, setDate] = useState(src?.date ?? todayISO());
   const [note, setNote] = useState(src?.note ?? '');
@@ -611,92 +632,6 @@ function AdjustSheet({ onClose }: { onClose: () => void }) {
             ? 'Enter an amount'
             : 'Add a reason'}
       </button>
-    </Sheet>
-  );
-}
-
-function PersonSheet({ email, ym, onClose }: { email: string; ym: string; onClose: () => void }) {
-  const { snap } = useSnapshot();
-  if (!snap) return null;
-  const m = memberOf(snap, email);
-  const budgets = Object.values(snap.budgets);
-  const contributions = budgets
-    .flatMap((b) => b.contributions)
-    .filter((c) => c.by === email && c.date.startsWith(ym));
-  const purchases = budgets
-    .flatMap((b) => b.purchases)
-    .filter((p) => p.spentBy === email && p.date.startsWith(ym))
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const lines = purchases.flatMap((p) => p.lines);
-  const cats = bars(
-    lines,
-    (l) => l.category,
-    (l) => l.price,
-  );
-  const putIn = contributions.reduce((t, c) => t + c.amount, 0);
-  const spent = purchases.reduce((t, p) => t + p.total, 0);
-  return (
-    <Sheet onClose={onClose} title={`${m.name} in ${monthName(ym)}`} labelledBy="person-title">
-      <div className="grid-2">
-        <div className="card card-pad stack" style={{ gap: 0 }}>
-          <span className="small muted">Put in</span>
-          <span className="money-l" style={{ fontSize: 'var(--fs-money-l)', color: 'var(--primary)' }}>
-            {money(putIn)}
-          </span>
-        </div>
-        <div className="card card-pad stack" style={{ gap: 0 }}>
-          <span className="small muted">Spent</span>
-          <span className="money-l" style={{ fontSize: 'var(--fs-money-l)' }}>
-            {money(spent)}
-          </span>
-        </div>
-      </div>
-      {cats.length > 0 && (
-        <>
-          <span className="bold">By category</span>
-          <div className="stack" style={{ gap: 8 }}>
-            {cats.map((c) => (
-              <div key={c.key} className="stack" style={{ gap: 4 }}>
-                <span className="row-between">
-                  <span className="bold">{c.key}</span>
-                  <span className="num">{money(c.value)}</span>
-                </span>
-                <span className="bar-track">
-                  <span
-                    className={`bar-fill ${personKey(snap.household.members, m.email) === 'b' ? 'use' : ''}`}
-                    style={{ width: `${Math.max(2, Math.round(c.rel * 100))}%` }}
-                  />
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      <span className="bold">Purchases ({purchases.length})</span>
-      <div className="list">
-        {purchases.map((p) => (
-          <div key={p.id} className="stack" style={{ gap: 2, padding: '10px 14px' }}>
-            <span className="row-between">
-              <span className="bold">{p.store}</span>
-              <span className="num">{money(-p.total)}</span>
-            </span>
-            <span className="small muted">
-              {dayLabel(p.date)}: {p.lines.map((l) => l.name).join(', ')}
-            </span>
-          </div>
-        ))}
-        {purchases.length === 0 && (
-          <p className="muted" style={{ margin: 0, padding: 14 }}>
-            No purchases this month.
-          </p>
-        )}
-      </div>
-      {contributions.length > 0 && (
-        <p className="small muted" style={{ margin: 0 }}>
-          {plural(contributions.length, 'contribution')}:{' '}
-          {contributions.map((c) => `${money(c.amount)} on ${dayLabel(c.date)}`).join(', ')}
-        </p>
-      )}
     </Sheet>
   );
 }

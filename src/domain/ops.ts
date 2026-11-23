@@ -338,6 +338,8 @@ export function groupByFile(ops: Op[]): Map<DataFile, Op[]> {
 const asRec = (v: { id: string }) => v as unknown as Rec;
 type BudgetF = `budget-${number}`;
 type UsageF = `usage-${number}`;
+/** household fields that are plain lists of names */
+type HouseholdList = 'places' | 'stores' | 'recipeCategories' | 'units' | 'budgetCategories';
 
 export const O = {
   item: {
@@ -424,31 +426,27 @@ export const O = {
   }),
   household: {
     set: (field: string, value: unknown): Op => ({ t: 'setField', file: 'household', field, value }),
-    listAdd: (
-      field: 'places' | 'stores' | 'recipeCategories' | 'units',
-      value: string,
-      index?: number,
-    ): Op => ({
+    listAdd: (field: HouseholdList, value: string, index?: number): Op => ({
       t: 'listAdd',
       file: 'household',
       field,
       value,
       index,
     }),
-    listRemove: (field: 'places' | 'stores' | 'recipeCategories' | 'units', value: string): Op => ({
+    listRemove: (field: HouseholdList, value: string): Op => ({
       t: 'listRemove',
       file: 'household',
       field,
       value,
     }),
-    listRename: (field: 'places' | 'stores' | 'recipeCategories', from: string, to: string): Op => ({
+    listRename: (field: Exclude<HouseholdList, 'units'>, from: string, to: string): Op => ({
       t: 'listRename',
       file: 'household',
       field,
       from,
       to,
     }),
-    listMove: (field: 'places' | 'stores' | 'recipeCategories', value: string, index: number): Op => ({
+    listMove: (field: Exclude<HouseholdList, 'units'>, value: string, index: number): Op => ({
       t: 'listMove',
       file: 'household',
       field,

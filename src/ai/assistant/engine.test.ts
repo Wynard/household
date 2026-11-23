@@ -59,7 +59,7 @@ describe('assistant tool routing (mocked Gemini)', () => {
       status: 'pending',
       edit: 'purchase',
     });
-    expect(out.cards[0].lines[0]).toBe('Piața Obor, 7 Oct, money taken by Mihai');
+    expect(out.cards[0].lines[0]).toBe('Piața Obor, 7 Oct, paid by Mihai');
     expect(out.cards[0].lines).toContain('Stock: Potatoes 2,5 kg → 4,5 kg, Pantry');
   });
 

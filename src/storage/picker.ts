@@ -3,7 +3,7 @@
 // the files inside, so joining picks the folder and then its files.
 import { config } from '../config';
 import { loadScript } from '../auth/google';
-import { FOLDER_MIME } from './drive';
+import { EXCEL_MIMES, FOLDER_MIME, SHEET_MIME } from './drive';
 
 const GAPI_SRC = 'https://apis.google.com/js/api.js';
 
@@ -98,6 +98,18 @@ export function pickFilesIn(token: string, folderId: string): Promise<Picked[] |
         .setMimeTypes('application/json,image/jpeg'),
     ],
     { title: 'Select every file in the folder, then tap Select', multi: true },
+  );
+}
+/** A spreadsheet (Google Sheets, Excel or CSV), mine or shared with me: picking it gives this phone access. */
+export function pickSpreadsheet(token: string): Promise<Picked[] | null> {
+  const mimes = [SHEET_MIME, ...EXCEL_MIMES, 'text/csv'].join(',');
+  return open(
+    token,
+    (p) => [
+      new p.DocsView(p.ViewId.DOCS).setMimeTypes(mimes),
+      new p.DocsView(p.ViewId.DOCS).setMimeTypes(mimes).setOwnedByMe(false),
+    ],
+    { title: 'Pick the budget spreadsheet' },
   );
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

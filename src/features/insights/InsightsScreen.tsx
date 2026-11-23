@@ -8,7 +8,8 @@ import { IconClose, IconFilter } from '../../ui/icons';
 import { Sheet } from '../../ui/Sheet';
 import { currentMonth, shiftMonth } from '../../domain/dates';
 import { money, monthLabel, monthName, plural, qty as fmtQty } from '../../domain/format';
-import { priceHistory, spendingInsights, usageInsights, type Bar, type Filters } from '../../domain/insights';
+import { spendingInsights, usageInsights, type Bar, type Filters } from '../../domain/insights';
+import { NO_CATEGORY } from '../../domain/budget';
 import type { Snapshot } from '../../domain/actions';
 import { personKey } from '../../ui/person';
 
@@ -24,7 +25,6 @@ export function insightsLink(p: { ym?: string; view?: View } & Filters) {
   if (p.person) q.set('p', p.person);
   if (p.category) q.set('c', p.category);
   if (p.subcategory) q.set('s', p.subcategory);
-  if (p.store) q.set('st', p.store);
   const s = q.toString();
   return `/insights${s ? `?${s}` : ''}`;
 }
@@ -38,25 +38,30 @@ export function InsightsScreen() {
   const pP = params.get('p');
   const pC = params.get('c');
   const pS = params.get('s');
-  const pSt = params.get('st');
+  // spending: category = a budget category; consumption: an item category (+ subcategory)
   const f: Filters = useMemo(
     () => ({
       person: pP ?? undefined,
       category: pC ?? undefined,
-      subcategory: pS ?? undefined,
-      store: view === 'spend' ? (pSt ?? undefined) : undefined,
+      subcategory: view === 'use' ? (pS ?? undefined) : undefined,
     }),
-    [pP, pC, pS, pSt, view],
+    [pP, pC, pS, view],
   );
   const set = (patch: Partial<{ ym: string; view: View } & Filters>) =>
     setParams(
       new URLSearchParams(
-        insightsLink({ ym, view, ...f, store: params.get('st') ?? undefined, ...patch }).split('?')[1] ?? '',
+        insightsLink({
+          ym,
+          view,
+          ...f,
+          // the two views have different categories
+          ...(patch.view && patch.view !== view ? { category: undefined, subcategory: undefined } : {}),
+          ...patch,
+        }).split('?')[1] ?? '',
       ),
       { replace: true },
     );
   const [filters, setFilters] = useState(false);
-  const [priceOf, setPriceOf] = useState<{ itemId?: string; name: string } | null>(null);
 
   const budgets = useMemo(() => (snap ? Object.values(snap.budgets) : []), [snap]);
   const usage = useMemo(() => (snap ? Object.values(snap.usage) : []), [snap]);
@@ -86,22 +91,17 @@ export function InsightsScreen() {
   if (f.category)
     active.push({ label: f.category, clear: () => set({ category: undefined, subcategory: undefined }) });
   if (f.subcategory) active.push({ label: f.subcategory, clear: () => set({ subcategory: undefined }) });
-  if (f.store) active.push({ label: f.store, clear: () => set({ store: undefined }) });
   const prevName = monthName(shiftMonth(ym, -1));
+  // consumption drills category -> subcategory -> item
   const drillTitle = !f.category ? 'By category' : !f.subcategory ? `Inside ${f.category}` : f.subcategory;
   const drillHint = !f.category
     ? 'Tap a category to see its subcategories.'
     : !f.subcategory
       ? 'Tap a subcategory to see its items.'
-      : 'Tap an item to see its price over time.';
-  const drill = (key: string) => {
-    if (!f.category) set({ category: key });
-    else if (!f.subcategory) set({ subcategory: key });
-    else {
-      const it = snap.items.items.find((i) => i.name === key);
-      setPriceOf({ itemId: it?.id, name: key });
-    }
-  };
+      : '';
+  const drill = f.subcategory
+    ? undefined
+    : (key: string) => (!f.category ? set({ category: key }) : set({ subcategory: key }));
 
   return (
     <>
@@ -176,46 +176,44 @@ export function InsightsScreen() {
           </div>
           {sp.total > 0 ? (
             <>
-              <h2 className="h2" style={{ marginBottom: 4 }}>
-                {drillTitle}
-              </h2>
-              <p className="small muted" style={{ margin: '0 0 10px' }}>
-                {drillHint}
-              </p>
-              <BarList bars={sp.byDrill} onPick={drill} showPct />
+              {f.category ? (
+                <>
+                  <h2 className="h2">Purchases in {f.category}</h2>
+                  <div className="list">
+                    {sp.purchases.map((x) => (
+                      <div key={x.id} className="row-between" style={{ padding: '10px 16px', gap: 12 }}>
+                        <span className="stack" style={{ gap: 0 }}>
+                          <span className="bold">{x.title}</span>
+                          <span className="small muted">
+                            {format(parseISO(x.date), 'd MMM')}, {nameOf(x.spentBy)}
+                          </span>
+                        </span>
+                        <span className="num">{money(x.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="h2" style={{ marginBottom: 4 }}>
+                    By category
+                  </h2>
+                  <p className="small muted" style={{ margin: '0 0 10px' }}>
+                    Tap a category to see its purchases.
+                  </p>
+                  <BarList bars={sp.byCategory} onPick={(c) => set({ category: c })} showPct />
+                </>
+              )}
               <h2 className="h2">Week by week</h2>
               <WeekBars weeks={sp.weeks} />
-              <h2 className="h2">Who spent it</h2>
+              <h2 className="h2">Who paid</h2>
               <BarList bars={sp.byPerson} label={nameOf} tone={toneOf} />
-              <h2 className="h2">Where</h2>
-              <BarList bars={sp.byStore} onPick={(s) => set({ store: s })} />
-              <h2 className="h2">Top items</h2>
-              <div className="list">
-                {sp.topItems.map((t) => (
-                  <button
-                    key={t.itemId ?? t.name}
-                    type="button"
-                    className="list-row"
-                    onClick={() => setPriceOf({ itemId: t.itemId, name: t.name })}
-                  >
-                    <span className="grow stack" style={{ gap: 0 }}>
-                      <span className="title" style={{ fontSize: 'var(--fs-secondary)' }}>
-                        {t.name}
-                      </span>
-                      <span className="sub">
-                        {fmtQty(t.quantity, t.unit)} bought, {t.subcategory}
-                      </span>
-                    </span>
-                    <span className="bold num">{money(t.value)}</span>
-                  </button>
-                ))}
-              </div>
               <div className="callout callout-cobalt stack" style={{ gap: 4, marginTop: 22 }}>
                 <span className="bold" style={{ fontSize: 'var(--fs-label)' }}>
                   Money in and out
                 </span>
                 <span style={{ fontSize: 'var(--fs-secondary)' }}>
-                  {f.category || f.store
+                  {f.category
                     ? `Put in ${money(sp.moneyIn)} this month. Spending above is only for your filters.`
                     : `Put in ${money(sp.moneyIn)}, spent ${money(sp.total)}. ${sp.moneyIn - sp.total >= 0 ? `${money(sp.moneyIn - sp.total)} stayed in the pot.` : `${money(sp.total - sp.moneyIn)} more than was put in.`}`}
                 </span>
@@ -250,7 +248,6 @@ export function InsightsScreen() {
       )}
 
       {filters && <FilterSheet snap={snap} view={view} f={f} onSet={set} onClose={() => setFilters(false)} />}
-      {priceOf && <PriceSheet snap={snap} item={priceOf} onClose={() => setPriceOf(null)} />}
     </>
   );
 }
@@ -270,22 +267,37 @@ function UsageView({
   f: Filters;
   drillTitle: string;
   drillHint: string;
-  onDrill: (k: string) => void;
+  onDrill?: (k: string) => void;
   hasFilters: boolean;
 }) {
   const recipeTitle = (id: string) =>
     snap.recipes.recipes.find((r) => r.id === id)?.title ?? 'A deleted recipe';
-  const umax = us.mostUsed[0]?.value || 1;
+  // without prices (the Budget no longer has item prices), uses are counted instead of valued
+  const umax = (us.valued ? us.mostUsed[0]?.value : us.mostUsed[0]?.times) || 1;
   return (
     <>
       <div className="card card-pad stack" style={{ gap: 4, marginTop: 16 }}>
-        <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
-          Groceries used, worth about
-        </span>
-        <span className="big-num">{money(us.totalValue)}</span>
-        <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
-          {plural(us.distinctItems, 'different item')} used, {plural(us.meals, 'meal')} cooked in the app
-        </span>
+        {us.valued ? (
+          <>
+            <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
+              Groceries used, worth about
+            </span>
+            <span className="big-num">{money(us.totalValue)}</span>
+            <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
+              {plural(us.distinctItems, 'different item')} used, {plural(us.meals, 'meal')} cooked in the app
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
+              Different items used
+            </span>
+            <span className="big-num">{us.distinctItems}</span>
+            <span className="muted" style={{ fontSize: 'var(--fs-secondary)' }}>
+              {plural(us.meals, 'meal')} cooked in the app
+            </span>
+          </>
+        )}
       </div>
       {us.mostUsed.length > 0 ? (
         <>
@@ -298,12 +310,14 @@ function UsageView({
                     <span className="bold">{x.name}</span>
                     <span className="small muted">{fmtQty(x.quantity, x.unit)} used</span>
                   </span>
-                  <span className="num">{money(x.value)}</span>
+                  <span className="num">{us.valued ? money(x.value) : plural(x.times, 'time')}</span>
                 </span>
                 <span className="bar-track">
                   <span
                     className="bar-fill use"
-                    style={{ width: `${Math.max(2, Math.round((x.value / umax) * 100))}%` }}
+                    style={{
+                      width: `${Math.max(2, Math.round(((us.valued ? x.value : x.times) / umax) * 100))}%`,
+                    }}
                   />
                 </span>
               </div>
@@ -312,10 +326,18 @@ function UsageView({
           <h2 className="h2" style={{ marginBottom: 4 }}>
             {drillTitle}
           </h2>
-          <p className="small muted" style={{ margin: '0 0 10px' }}>
-            {drillHint}
-          </p>
-          <BarList bars={us.byDrill} tone={() => 'use'} onPick={onDrill} showPct />
+          {drillHint && (
+            <p className="small muted" style={{ margin: '0 0 10px' }}>
+              {drillHint}
+            </p>
+          )}
+          <BarList
+            bars={us.byDrill}
+            tone={() => 'use'}
+            onPick={onDrill}
+            showPct
+            format={us.valued ? undefined : (v) => plural(v, 'time')}
+          />
         </>
       ) : (
         <p className="empty">
@@ -391,8 +413,8 @@ function UsageView({
         </>
       )}
       <p className="small muted" style={{ marginTop: 16 }}>
-        Usage comes from finished recipes and from lowering amounts in Stock. Value uses what you paid for
-        each item.
+        Usage comes from finished recipes and from lowering amounts in Stock.
+        {us.valued && ' Value uses what you paid for each item on receipts.'}
       </p>
     </>
   );
@@ -404,10 +426,13 @@ function BarList({
   label = (k) => k,
   tone = () => '',
   showPct,
+  format = money,
 }: {
   bars: Bar[];
   onPick?: (key: string) => void;
   label?: (k: string) => string;
+  /** how a bar's value reads (lei by default) */
+  format?: (v: number) => string;
   /** '' = spending (ink), 'use' = consumption / person B (yellow, outlined) */
   tone?: (k: string) => BarTone;
   showPct?: boolean;
@@ -420,7 +445,7 @@ function BarList({
             <span className="row-between" style={{ width: '100%' }}>
               <span className="bold">{label(b.key)}</span>
               <span className="num">
-                {money(b.value)}{' '}
+                {format(b.value)}{' '}
                 {showPct && <span className="small muted">{Math.round(b.share * 100)}%</span>}
               </span>
             </span>
@@ -547,10 +572,16 @@ function FilterSheet({
   onSet: (p: Partial<Filters>) => void;
   onClose: () => void;
 }) {
-  const cat = snap.household.categories.find((c) => c.name === f.category);
-  const stores = [
-    ...new Set(Object.values(snap.budgets).flatMap((b) => b.purchases.map((p) => p.store))),
-  ].sort();
+  const cat = view === 'use' ? snap.household.categories.find((c) => c.name === f.category) : undefined;
+  const categories =
+    view === 'spend'
+      ? [
+          ...snap.household.budgetCategories,
+          ...(Object.values(snap.budgets).some((b) => b.purchases.some((p) => !p.category))
+            ? [NO_CATEGORY]
+            : []),
+        ]
+      : snap.household.categories.map((c) => c.name);
   return (
     <Sheet onClose={onClose} labelledBy="fl-title">
       <div className="row-between">
@@ -560,9 +591,7 @@ function FilterSheet({
         <button
           type="button"
           className="link-btn"
-          onClick={() =>
-            onSet({ person: undefined, category: undefined, subcategory: undefined, store: undefined })
-          }
+          onClick={() => onSet({ person: undefined, category: undefined, subcategory: undefined })}
         >
           Clear all
         </button>
@@ -586,13 +615,13 @@ function FilterSheet({
           <Chip pressed={!f.category} onClick={() => onSet({ category: undefined, subcategory: undefined })}>
             All
           </Chip>
-          {snap.household.categories.map((c) => (
+          {categories.map((c) => (
             <Chip
-              key={c.name}
-              pressed={f.category === c.name}
-              onClick={() => onSet({ category: c.name, subcategory: undefined })}
+              key={c}
+              pressed={f.category === c}
+              onClick={() => onSet({ category: c, subcategory: undefined })}
             >
-              {c.name}
+              {c}
             </Chip>
           ))}
         </div>
@@ -612,68 +641,9 @@ function FilterSheet({
           </div>
         </div>
       )}
-      {view === 'spend' && (
-        <div className="stack-sm" style={{ gap: 8 }}>
-          <span className="field-label">Store</span>
-          <div className="wrap">
-            <Chip pressed={!f.store} onClick={() => onSet({ store: undefined })}>
-              All stores
-            </Chip>
-            {stores.map((s) => (
-              <Chip key={s} pressed={f.store === s} onClick={() => onSet({ store: s })}>
-                {s}
-              </Chip>
-            ))}
-          </div>
-        </div>
-      )}
       <button type="button" className="btn btn-primary btn-block" onClick={onClose}>
         Show results
       </button>
-    </Sheet>
-  );
-}
-
-function PriceSheet({
-  snap,
-  item,
-  onClose,
-}: {
-  snap: Snapshot;
-  item: { itemId?: string; name: string };
-  onClose: () => void;
-}) {
-  const hist = priceHistory(Object.values(snap.budgets), item);
-  const unit = hist[0]?.unit ?? 'pcs';
-  const per = unit === 'pcs' ? 'each' : `per ${unit}`;
-  return (
-    <Sheet onClose={onClose} title={`${item.name}: price paid`} labelledBy="ph-title">
-      {hist.length >= 2 && (
-        <TrendLine
-          points={hist.map((h) => ({ label: format(parseISO(h.date), 'd MMM'), value: h.perUnit }))}
-        />
-      )}
-      <div className="list">
-        {hist
-          .slice()
-          .reverse()
-          .map((h, i) => (
-            <div key={i} className="row-between" style={{ padding: '10px 16px' }}>
-              <span className="stack" style={{ gap: 0 }}>
-                <span className="bold">{h.store}</span>
-                <span className="small muted">{format(parseISO(h.date), 'd MMM yyyy')}</span>
-              </span>
-              <span className="num">
-                {money(h.perUnit)} {per}
-              </span>
-            </div>
-          ))}
-        {hist.length === 0 && (
-          <p className="muted" style={{ margin: 0, padding: 16 }}>
-            No purchases of this item yet.
-          </p>
-        )}
-      </div>
     </Sheet>
   );
 }

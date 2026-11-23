@@ -8,14 +8,16 @@ A private household app for two people, mostly used on phones and installed to t
 - **Recipes**: favourites and categories, checked against stock, a servings scaler, a step-by-step cooking mode with timers,
   and a **week plan** that reserves stock meal by meal.
 - **Shopping**: one shared list, filled by hand, by low stock, by recipes and by the plan.
-- **Budget**: a shared money pot. Who put in what, who spent what on which items, and what's left. Purchases come from receipt
-  scans or manual entry; every entry can be edited or deleted (with undo).
-- **Insights**: monthly spending and consumption, with filters and drill-down.
-- **Assistant**: talk or type ("we bought 2 kg potatoes at the market for 10 lei"), scan receipts, paste recipe links. It prepares
-  changes as cards; nothing changes until someone taps **Apply**.
+- **Budget**: a shared money pot. Who put in what, and what was paid from it: an amount, a budget category (Groceries, Rent…),
+  who paid and a short description. Every entry can be edited or deleted (with undo). An old budget spreadsheet can be imported
+  (Settings › Import budget history).
+- **Insights**: monthly spending by budget category and person, and consumption, with filters and drill-down.
+- **Assistant** (parked, `features.assistant` in `src/config.ts`): talk or type, scan receipts, paste recipe links. It prepares
+  changes as cards; nothing changes until someone taps **Apply**. While parked it has no buttons and Settings shows it as not
+  available.
 
 There's no server. The app is a static site on GitHub Pages, the data lives as JSON files in a Google Drive folder shared by the two
-of you, and the AI features use each person's own Gemini API key (free tier), called from the browser.
+of you, and the AI features (the Assistant) use each person's own Gemini API key (free tier), called from the browser.
 
 ## Try it with sample data
 
@@ -25,7 +27,8 @@ npm run dev:mock
 ```
 
 Open http://localhost:5173. Everything runs on fictional sample data ("Ana" and "Mihai"), with no Google setup. To try the Assistant,
-paste a Gemini key in **Settings › This phone**. In **Settings › This phone › Sample data** you can switch between the two people.
+turn on `features.assistant` in `src/config.ts` and paste a Gemini key in **Settings › This phone**. In **Settings › This phone ›
+Sample data** you can switch between the two people.
 
 ## Set it up for real
 

@@ -1,4 +1,5 @@
 // File format migrations (pure, idempotent). v1 -> v2: item tracking. v2 -> v3: items can be inactive. v3 -> v4: own units.
+// v4 -> v5: budget categories, purchases as a total.
 type Raw = Record<string, unknown>;
 
 /**
@@ -33,3 +34,14 @@ export const migrateV2toV3 = (raw: Raw): Raw => ({ ...raw, schemaVersion: 3 });
 
 /** v4: units became open (household.units). Older apps must refuse files that may hold "can" or "jar". */
 export const migrateV3toV4 = (raw: Raw): Raw => ({ ...raw, schemaVersion: 4 });
+
+/**
+ * v5: the pot got its own spending categories (household.budgetCategories) and
+ * purchases can be just a total (no store, no lines). Households from before
+ * start with the default categories; older apps must refuse v5 files.
+ */
+export function migrateV4toV5(raw: Raw, file: string, defaults: string[]): Raw {
+  if (file === 'household' && !Array.isArray(raw.budgetCategories))
+    return { ...raw, budgetCategories: [...defaults], schemaVersion: 5 };
+  return { ...raw, schemaVersion: 5 };
+}

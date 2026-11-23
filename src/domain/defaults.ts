@@ -27,6 +27,17 @@ export const DEFAULT_PLACES = [
 
 export const DEFAULT_RECIPE_CATEGORIES = ['Romanian', 'Italian', 'Asian', 'Arabic', 'Breakfast', 'Desserts'];
 
+/** What money from the pot is spent on. Separate from item categories (rent isn't an item). */
+export const DEFAULT_BUDGET_CATEGORIES = [
+  'Groceries',
+  'Rent',
+  'Utilities',
+  'Home',
+  'Pets',
+  'Health',
+  'Other',
+];
+
 export const DEFAULT_STORES = ['Lidl', 'Kaufland', 'Mega Image', 'Carrefour', 'Profi', 'Penny', 'Auchan'];
 
 /** Member colours: cobalt for the first person, saffron for the second. */

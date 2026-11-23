@@ -96,8 +96,8 @@ export const READ_TOOLS: FunctionDeclaration[] = [
   {
     name: 'getSpending',
     description:
-      'Spending for a month with filters: total, change vs previous month, by category (or subcategory/item when filtered), by store, by person, top items.',
-    parameters: S({ month: MONTH, person: PERSON, category: str(), subcategory: str(), store: str() }),
+      'Spending from the shared pot for a month: total, change vs previous month, by budget category, by person, and the purchases (filter by person or budget category).',
+    parameters: S({ month: MONTH, person: PERSON, category: str('a budget category') }),
   },
   {
     name: 'getUsage',
@@ -448,12 +448,7 @@ export function runTool(name: string, args: Record<string, unknown>, env: ToolEn
       };
     case 'getSpending': {
       const ym = s(args.month) ?? currentMonth();
-      const f = {
-        person: person(args.person),
-        category: s(args.category),
-        subcategory: s(args.subcategory),
-        store: s(args.store),
-      };
+      const f = { person: person(args.person), category: s(args.category) };
       const sp = spendingInsights(budgets, ym, f);
       return {
         response: {
@@ -462,11 +457,11 @@ export function runTool(name: string, args: Record<string, unknown>, env: ToolEn
           previousMonthTotal: sp.comparison.prevTotal,
           changePct: sp.comparison.pct,
           direction: sp.comparison.direction,
-          breakdownLevel: sp.level,
-          breakdown: sp.byDrill.slice(0, 12).map((b) => ({ name: b.key, lei: b.value })),
-          byStore: sp.byStore.slice(0, 8).map((b) => ({ store: b.key, lei: b.value })),
+          byCategory: sp.byCategory.slice(0, 12).map((b) => ({ category: b.key, lei: b.value })),
           byPerson: sp.byPerson.map((b) => ({ person: pseudo.label(b.key), lei: b.value })),
-          topItems: sp.topItems.slice(0, 6).map((t) => ({ name: t.name, lei: t.value })),
+          purchases: sp.purchases
+            .slice(0, 15)
+            .map((x) => ({ date: x.date, what: x.title, category: x.category, lei: x.total })),
           moneyIn: sp.moneyIn,
         },
       };
@@ -772,7 +767,6 @@ export function runTool(name: string, args: Record<string, unknown>, env: ToolEn
                   person: person(args.person),
                   category: s(args.category),
                   subcategory: s(args.subcategory),
-                  store: s(args.store),
                 })
               : `/${scr === 'shopping' ? 'shopping' : (scr ?? 'stock')}`;
       return { response: { result: 'A button was shown.' }, link: { label, to } };

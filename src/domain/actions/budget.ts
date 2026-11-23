@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { defineAction, type Ctx } from './types';
 import { O, type Op } from '../ops';
-import { ensureYearOps } from '../budget';
+import { ensureYearOps, purchaseTitle } from '../budget';
 import { budgetFileName } from '../files';
 import { yearOfDate } from '../dates';
 import { catLabel, dayLabel, money, plural, qty as fmtQty, round2, round3 } from '../format';
@@ -43,16 +43,27 @@ export const purchaseLineInput = z.object({
 export type PurchaseLineInput = z.input<typeof purchaseLineInput>;
 
 const purchaseFields = {
-  store: z.string().trim().min(1, 'needs the store name'),
+  /** receipts and older purchases; a purchase from the Budget screen has none */
+  store: z.string().trim().min(1).optional(),
   date,
   time: z
     .string()
     .regex(/^\d{2}:\d{2}$/)
     .optional(),
   spentBy: z.string().min(1),
+  /** description, e.g. "Electricity for June" */
   purpose: z.string().trim().optional(),
-  lines: z.array(purchaseLineInput).min(1, 'needs at least one item'),
+  /** budget category (household.budgetCategories) */
+  category: z.string().trim().min(1).optional(),
+  /** item lines from a receipt scan; none for a plain total */
+  lines: z.array(purchaseLineInput).default([]),
 };
+
+/** The household's spelling of a budget category, or undefined when it isn't one. */
+export function budgetCategoryOf(ctx: Ctx, name: string | undefined): string | undefined {
+  if (!name) return undefined;
+  return ctx.snap.household.budgetCategories.find((c) => normalise(c) === normalise(name));
+}
 
 export function findPurchase(ctx: Ctx, id: string): { p: Purchase; year: number } | undefined {
   for (const b of Object.values(ctx.snap.budgets)) {
@@ -116,16 +127,23 @@ export const addPurchase = defineAction({
     checkShoppingIds: z.array(z.string()).optional(),
   }),
   plan(ctx, input) {
+    const blocked = (why: string) => ({ title: 'Add a purchase', lines: [], ops: [], blocked: why });
     const tree = ctx.snap.household.categories;
     for (const l of input.lines)
       if (!tree.some((c) => c.name === l.category && c.subcategories.includes(l.subcategory)))
-        return { title: 'Add a purchase', lines: [], ops: [], blocked: `Pick a category for ${l.name}.` };
+        return blocked(`Pick a category for ${l.name}.`);
+    if (!input.lines.length && !(input.total && input.total > 0)) return blocked('Enter the amount.');
+    const category = budgetCategoryOf(ctx, input.category);
+    if (input.category && !category)
+      return blocked(`${input.category} isn't one of your budget categories. Add it in Settings first.`);
+    if (!input.lines.length && !category) return blocked('Pick a category.');
     const year = yearOfDate(input.date);
     const ops: Op[] = [...ensureYearOps(ctx, year)];
-    const store = canonicalStore(ctx, input.store);
-    ops.push(...storeOps(ctx, store));
+    const store = input.store ? canonicalStore(ctx, input.store) : undefined;
+    if (store) ops.push(...storeOps(ctx, store));
+    const what = store ?? (input.purpose || category || 'Purchase');
     const preview: string[] = [
-      `${store}, ${dayLabel(input.date)}${input.time ? ` ${input.time}` : ''}, money taken by ${memberName(ctx, input.spentBy)}`,
+      `${what}, ${dayLabel(input.date)}${input.time ? ` ${input.time}` : ''}, paid by ${memberName(ctx, input.spentBy)}${category && category !== what ? `, ${category}` : ''}`,
     ];
     const stockLines: string[] = [];
     const after = new Map<string, Item>();
@@ -195,7 +213,7 @@ export const addPurchase = defineAction({
           amount: round2(line.price / line.quantity),
           per: line.unit,
           date: input.date,
-          store,
+          store: store ?? '',
         };
         const patch: Partial<Item> = { lastPrice };
         if (
@@ -215,7 +233,8 @@ export const addPurchase = defineAction({
       id: ctx.newId(),
       date: input.date,
       ...(input.time ? { time: input.time } : {}),
-      store,
+      ...(store ? { store } : {}),
+      ...(category ? { category } : {}),
       spentBy: input.spentBy,
       ...(input.purpose ? { purpose: input.purpose } : {}),
       lines,
@@ -248,38 +267,45 @@ export const addPurchase = defineAction({
   },
 });
 
+/**
+ * Edits what a purchase is: amount, category, who paid, date, description.
+ * Item lines and the store of older purchases stay as they were; stock never changes.
+ */
 export const updatePurchase = defineAction({
   name: 'updatePurchase',
-  input: z.object({ id: z.string(), ...purchaseFields }),
+  input: z.object({
+    id: z.string(),
+    date,
+    spentBy: z.string().min(1),
+    total: z.number().positive('the amount must be above zero'),
+    category: z.string().trim().min(1, 'needs a category'),
+    purpose: z.string().trim().optional(),
+  }),
   plan(ctx, input) {
     const found = findPurchase(ctx, input.id);
     if (!found) return { title: 'Edit purchase', lines: [], ops: [], blocked: 'This purchase was deleted.' };
     const { p, year } = found;
-    const tree = ctx.snap.household.categories;
-    for (const l of input.lines)
-      if (!tree.some((c) => c.name === l.category && c.subcategories.includes(l.subcategory)))
-        return { title: 'Edit purchase', lines: [], ops: [], blocked: `Pick a category for ${l.name}.` };
-    const store = canonicalStore(ctx, input.store);
-    const lines = input.lines.map((l) => toLine(l, l.id ?? ctx.newId(), l.itemId));
-    const sum = round2(lines.reduce((t, l) => t + l.price, 0));
-    const linesChanged = JSON.stringify(lines) !== JSON.stringify(p.lines);
+    const category = budgetCategoryOf(ctx, input.category);
+    if (!category)
+      return {
+        title: 'Edit purchase',
+        lines: [],
+        ops: [],
+        blocked: `${input.category} isn't one of your budget categories.`,
+      };
     const next: Purchase = {
       ...p,
       date: input.date,
-      ...(input.time ? { time: input.time } : {}),
-      store,
       spentBy: input.spentBy,
+      total: round2(input.total),
+      category,
       purpose: input.purpose || undefined,
-      lines,
-      // a receipt keeps its printed total unless the lines changed
-      total: p.source === 'receipt' && !linesChanged ? p.total : sum,
       editedBy: ctx.actor,
       editedAt: ctx.now,
     };
     if (!next.purpose) delete next.purpose;
-    if (!input.time) delete next.time;
     const newYear = yearOfDate(input.date);
-    const ops: Op[] = [...storeOps(ctx, store)];
+    const ops: Op[] = [];
     if (newYear !== year) {
       ops.push(
         ...ensureYearOps(ctx, newYear),
@@ -288,14 +314,14 @@ export const updatePurchase = defineAction({
       );
     } else ops.push(O.budget(budgetFileName(year)).upsertPurchase(next));
     const changes: string[] = [];
-    if (p.store !== store) changes.push(`Store: ${p.store} → ${store}`);
+    if (p.total !== next.total) changes.push(`Amount: ${money(p.total)} → ${money(next.total)}`);
+    if (p.category !== category) changes.push(`Category: ${p.category ?? 'none'} → ${category}`);
     if (p.date !== input.date) changes.push(`Date: ${dayLabel(p.date)} → ${dayLabel(input.date)}`);
     if (p.spentBy !== input.spentBy)
-      changes.push(`Spent by: ${memberName(ctx, p.spentBy)} → ${memberName(ctx, input.spentBy)}`);
-    if (p.total !== next.total) changes.push(`Total: ${money(p.total)} → ${money(next.total)}`);
-    if (linesChanged) changes.push(`${plural(lines.length, 'item')} saved`);
+      changes.push(`Paid by: ${memberName(ctx, p.spentBy)} → ${memberName(ctx, input.spentBy)}`);
+    if ((p.purpose ?? '') !== (next.purpose ?? '')) changes.push(`Description: ${next.purpose ?? 'none'}`);
     return {
-      title: `Save the ${store} purchase`,
+      title: `Save ${purchaseTitle(next)}`,
       lines: changes.length ? changes : ['No changes'],
       ops,
       result: p.id,
@@ -313,9 +339,9 @@ export const deletePurchase = defineAction({
     const { p, year } = found;
     const f = O.budget(budgetFileName(year));
     return {
-      title: `Delete the ${p.store} purchase of ${money(p.total)}`,
+      title: `Delete ${purchaseTitle(p)}, ${money(p.total)}`,
       lines: [
-        `${dayLabel(p.date)}, spent by ${memberName(ctx, p.spentBy)}, ${plural(p.lines.length, 'item')}`,
+        `${dayLabel(p.date)}, paid by ${memberName(ctx, p.spentBy)}${p.lines.length ? `, ${plural(p.lines.length, 'item')}` : ''}`,
         'The money goes back into the pot. Stock is not changed.',
       ],
       ops: [

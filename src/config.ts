@@ -8,5 +8,14 @@ export const config = {
   folderName: 'Household Data',
 };
 
+/**
+ * Features that can be parked without deleting their code. A parked feature
+ * has no buttons anywhere; Settings lists it as "Not available at the moment".
+ */
+export const features = {
+  /** The Assistant (chat, receipt scanning, recipe import from links) and its Gemini settings. */
+  assistant: false,
+};
+
 export const googleConfigured = () =>
   !!(config.googleClientId && config.pickerApiKey && config.googleProjectNumber);

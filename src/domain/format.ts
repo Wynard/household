@@ -25,6 +25,12 @@ export function num(n: number, maxDecimals = 2): string {
   return MONEY_STYLE === 'ro' ? s.replace('.', ',') : s;
 }
 
+/** An amount of money for an input field: "2000", "184,50" (never "184,5"). */
+export function moneyInput(n: number): string {
+  const s = Number.isInteger(n) ? String(n) : n.toFixed(2);
+  return MONEY_STYLE === 'ro' ? s.replace('.', ',') : s;
+}
+
 /** "1,5 kg", "6 pcs", "250 g". */
 export function qty(q: number, u: Unit): string {
   const h = humanise(q, u);

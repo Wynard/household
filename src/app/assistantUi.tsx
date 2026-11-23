@@ -2,6 +2,7 @@
 // context that screens publish for it (6.10). The panel itself arrives in 7b.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { prefs } from './prefs';
+import { features } from '../config';
 
 export interface ScreenContext {
   /** stock | recipes | recipe | plan | shopping | budget | insights */
@@ -28,18 +29,20 @@ const Ctx = createContext<AssistantUi | null>(null);
 
 export function AssistantUiProvider({ children }: { children: ReactNode }) {
   const [isOpen, setOpen] = useState(false);
-  const [disabled, setDisabledState] = useState(() => prefs.ui().assistantOff);
+  // parked (config.features.assistant): off everywhere, whatever this phone's setting says
+  const [disabled, setDisabledState] = useState(() => !features.assistant || prefs.ui().assistantOff);
   const [context, setContext] = useState<ScreenContext>({ key: 'stock', label: 'Looking at Stock' });
   const [pendingPrompt, setPending] = useState<AssistantUi['pendingPrompt']>(null);
 
   const open = useCallback((opts?: { prompt?: string; draft?: string }) => {
+    if (!features.assistant) return;
     setPending(opts ?? null);
     setOpen(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);
   const setDisabled = useCallback((v: boolean) => {
     prefs.setUi({ assistantOff: v });
-    setDisabledState(v);
+    setDisabledState(v || !features.assistant);
     if (v) setOpen(false);
   }, []);
   const takePrompt = useCallback(() => {

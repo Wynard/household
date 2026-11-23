@@ -5,9 +5,9 @@ import { Choice, DecimalInput, Field } from '../../ui/controls';
 import { IconClose } from '../../ui/icons';
 import { useMe, useRun, useSnapshot } from '../../app/data';
 import { categorise, findKnownItem } from '../../domain/categorise';
-import { catLabel, money, num, parseDecimal, qty as fmtQty, round2 } from '../../domain/format';
+import { catLabel, money, parseDecimal, qty as fmtQty, round2 } from '../../domain/format';
 import { nowHHmm, todayISO } from '../../domain/dates';
-import { type Item, type Purchase, type Unit } from '../../domain/schemas';
+import { type Item, type Unit } from '../../domain/schemas';
 import type { RunResult } from '../../app/data';
 import { CategoryPicker } from '../stock/CategoryPicker';
 
@@ -33,7 +33,6 @@ export interface LineDraft {
 }
 
 export interface PurchaseDraft {
-  id?: string;
   store: string;
   date: string;
   time?: string;
@@ -47,33 +46,6 @@ export interface PurchaseDraft {
 
 const uid = () => crypto.randomUUID();
 export const LOW_CONFIDENCE = 0.7;
-
-export function draftFromPurchase(p: Purchase): PurchaseDraft {
-  return {
-    id: p.id,
-    store: p.store,
-    date: p.date,
-    time: p.time,
-    spentBy: p.spentBy,
-    purpose: p.purpose ?? '',
-    source: p.source,
-    printedTotal: p.source === 'receipt' ? p.total : undefined,
-    lines: p.lines.map((l) => ({
-      id: l.id,
-      rawText: l.rawText,
-      itemId: l.itemId,
-      name: l.name,
-      quantity: num(l.quantity, 3),
-      unit: l.unit,
-      price: num(l.price),
-      category: l.category,
-      subcategory: l.subcategory,
-      auto: false,
-      note: l.note,
-      toStock: false,
-    })),
-  };
-}
 
 export const lineTotal = (lines: LineDraft[]) =>
   round2(lines.reduce((t, l) => t + (parseDecimal(l.price) || 0), 0));
@@ -90,10 +62,9 @@ export function purchaseProblem(d: PurchaseDraft): string | null {
   return null;
 }
 
-/** Input for the addPurchase / updatePurchase actions. */
+/** Input for the addPurchase action. */
 export function toActionInput(d: PurchaseDraft) {
   return {
-    ...(d.id ? { id: d.id } : {}),
     store: d.store.trim(),
     date: d.date,
     ...(d.time ? { time: d.time } : {}),
@@ -110,13 +81,9 @@ export function toActionInput(d: PurchaseDraft) {
       category: l.category!,
       subcategory: l.subcategory ?? '',
       ...(l.note?.trim() ? { note: l.note.trim() } : {}),
-      ...(d.id
-        ? {}
-        : {
-            toStock: l.toStock,
-            learnAlias: !!(l.rawText && l.itemId && l.confirmed),
-            ...(l.place ? { place: l.place } : {}),
-          }),
+      toStock: l.toStock,
+      learnAlias: !!(l.rawText && l.itemId && l.confirmed),
+      ...(l.place ? { place: l.place } : {}),
     })),
   };
 }
@@ -146,8 +113,9 @@ export function newLine(
 }
 
 /**
- * Full-screen purchase form: "Add a purchase" (manual), "Edit purchase", and the
- * receipt review screen (mode="receipt", with extra header content).
+ * Item-by-item purchase form: the Assistant's receipt review (with extra header
+ * content) and its "Edit" on a purchase card. The Budget screen adds purchases
+ * as a total instead (PurchaseSheet).
  */
 export function PurchaseEditor({
   initial,
@@ -170,8 +138,7 @@ export function PurchaseEditor({
   const { snap } = useSnapshot();
   const { run } = useRun();
   const me = useMe();
-  const editing = !!initial?.id;
-  const receipt = initial?.source === 'receipt' && !editing;
+  const receipt = initial?.source === 'receipt';
   const [d, setD] = useState<PurchaseDraft>(
     () =>
       initial ?? {
@@ -230,9 +197,7 @@ export function PurchaseEditor({
     setBusy(true);
     const res = submit
       ? await submit(d)
-      : editing
-        ? await run('updatePurchase', toActionInput(d), { toast: 'Purchase updated' })
-        : await run('addPurchase', toActionInput(d), { toast: `${money(total)} at ${d.store.trim()} saved` });
+      : await run('addPurchase', toActionInput(d), { toast: `${money(total)} at ${d.store.trim()} saved` });
     setBusy(false);
     if (res) {
       onSaved?.(res);
@@ -247,7 +212,7 @@ export function PurchaseEditor({
   return (
     <FullScreen z={40} label={title ?? 'Purchase'}>
       <div className="full-head">
-        <h1 className="h1-sm">{title ?? (editing ? 'Edit purchase' : 'Add a purchase')}</h1>
+        <h1 className="h1-sm">{title ?? 'Add a purchase'}</h1>
         <button
           type="button"
           className="icon-btn"
@@ -400,7 +365,7 @@ export function PurchaseEditor({
                   {l.category ? 'Change' : 'Pick category'}
                 </button>
               </div>
-              {!editing && (
+              {
                 <div
                   className="row-between"
                   style={{ paddingRight: 6, borderTop: '1px solid var(--line)', paddingTop: 8 }}
@@ -435,7 +400,7 @@ export function PurchaseEditor({
                     <span className="switch" data-on={l.toStock} />
                   </button>
                 </div>
-              )}
+              }
               {low && it && (
                 <div className="grid-2">
                   <button
@@ -550,9 +515,6 @@ export function PurchaseEditor({
               ? `Lines add up to ${money(total)}, same as the receipt total`
               : `Lines add up to ${money(total)}, the receipt says ${money(d.printedTotal)}: ${money(Math.abs(diff))} ${diff > 0 ? 'missing' : 'too much'}. Fix a line, or save with the receipt total.`}
           </div>
-        )}
-        {editing && (
-          <p className="small muted">Editing a purchase doesn't change stock. Use Stock for that.</p>
         )}
       </div>
       <div className="full-foot">

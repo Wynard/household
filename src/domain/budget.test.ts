@@ -89,7 +89,7 @@ describe('budget actions', () => {
     });
     expect(plan.title).toBe('Add a purchase of 10,00 lei');
     expect(plan.lines).toEqual([
-      'Market stall, 7 Oct, money taken by Mihai',
+      'Market stall, 7 Oct, paid by Mihai',
       'Potatoes, 2 kg, 10,00 lei, Produce › Vegetables',
       'Stock: Potatoes 2,5 kg → 4,5 kg, Pantry',
     ]);
@@ -182,14 +182,36 @@ describe('budget actions', () => {
 
   it('explains what is missing', () => {
     const ctx = makeCtx();
+    const base = { date: '2026-10-07', spentBy: 'ana@example.com' };
+    expect(planAction(ACTIONS.addPurchase, ctx, { ...base, category: 'Rent' }).blocked).toMatch(/amount/);
+    expect(planAction(ACTIONS.addPurchase, ctx, { ...base, total: 20 }).blocked).toMatch(/Pick a category/);
     expect(
-      planAction(ACTIONS.addPurchase, ctx, { store: '', date: '2026-10-07', spentBy: 'a', lines: [] })
-        .blocked,
-    ).toMatch(/store name/);
-    expect(
-      planAction(ACTIONS.addPurchase, ctx, { store: 'Lidl', date: '2026-10-07', spentBy: 'a', lines: [] })
-        .blocked,
-    ).toMatch(/at least one item/);
+      planAction(ACTIONS.addPurchase, ctx, { ...base, total: 20, category: 'Holidays' }).blocked,
+    ).toMatch(/isn't one of your budget categories/);
+  });
+
+  it('adds a purchase as just a total, a budget category, who paid and a description', () => {
+    const ctx = makeCtx();
+    const plan = planAction(ACTIONS.addPurchase, ctx, {
+      date: '2026-10-06',
+      spentBy: 'mihai@example.com',
+      total: 2500,
+      // the household's spelling wins
+      category: 'rent',
+      purpose: 'October rent',
+    });
+    expect(plan.blocked).toBeUndefined();
+    expect(plan.lines[0]).toBe('October rent, 6 Oct, paid by Mihai, Rent');
+    const { snap } = applyToSnapshot(ctx.snap, plan.ops);
+    const saved = snap.budgets[2026].purchases.find((x) => x.id === plan.result)!;
+    expect(saved).toMatchObject({ category: 'Rent', purpose: 'October rent', total: 2500, lines: [] });
+    expect(saved.store).toBeUndefined();
+    // no stock, no stores
+    expect(snap.items).toEqual(ctx.snap.items);
+    expect(snap.household.stores).toEqual(ctx.snap.household.stores);
+    expect(potBalance(Object.values(snap.budgets))).toBe(
+      round(potBalance(Object.values(ctx.snap.budgets)) - 2500),
+    );
   });
 
   it('first entry of a new year creates the year file with the closing balance', () => {
@@ -219,14 +241,73 @@ describe('budget actions', () => {
     expect(s2.budgets[2026].deleted).toHaveLength(0);
   });
 
-  it('edits record who and when, and keep the printed receipt total unless lines change', () => {
+  it('edits amount, category, who and description; receipt lines and the store stay', () => {
     const ctx = makeCtx(undefined, { me: 1 });
     const orig = ctx.snap.budgets[2026].purchases.find((x) => x.id === 'p0')!;
-    const plan = planAction(ACTIONS.updatePurchase, ctx, { ...orig, purpose: 'Big shop' });
+    const plan = planAction(ACTIONS.updatePurchase, ctx, {
+      id: 'p0',
+      date: orig.date,
+      spentBy: 'ana@example.com',
+      total: 200,
+      category: 'Home',
+      purpose: 'Big shop',
+    });
+    expect(plan.lines).toContain('Category: Groceries → Home');
     const saved = applyToSnapshot(ctx.snap, plan.ops).snap.budgets[2026].purchases.find(
       (x) => x.id === 'p0',
     )!;
-    expect(saved).toMatchObject({ editedBy: 'Mihai', purpose: 'Big shop', total: orig.total });
+    expect(saved).toMatchObject({
+      editedBy: 'Mihai',
+      purpose: 'Big shop',
+      total: 200,
+      category: 'Home',
+      spentBy: 'ana@example.com',
+      store: orig.store,
+      lines: orig.lines,
+    });
+    expect(planAction(ACTIONS.updatePurchase, ctx, { ...orig, total: 5, category: 'Nope' }).blocked).toMatch(
+      /isn't one of your budget categories/,
+    );
+  });
+
+  it('budget categories: rename updates purchases, renaming onto another merges, delete only when unused', () => {
+    const ctx = makeCtx();
+    const groceries = (s: typeof ctx.snap, c: string) =>
+      Object.values(s.budgets)
+        .flatMap((b) => b.purchases)
+        .filter((p) => p.category === c).length;
+    const n = groceries(ctx.snap, 'Groceries');
+    expect(n).toBeGreaterThan(0);
+    expect(planAction(ACTIONS.deleteBudgetCategory, ctx, { name: 'Groceries' }).blocked).toMatch(
+      /can only be renamed|Rename it/,
+    );
+    const ren = planAction(ACTIONS.renameBudgetCategory, ctx, { from: 'Groceries', to: 'Food' });
+    const s1 = applyToSnapshot(ctx.snap, ren.ops).snap;
+    expect(groceries(s1, 'Food')).toBe(n);
+    expect(s1.household.budgetCategories[0]).toBe('Food');
+    const merge = planAction(ACTIONS.renameBudgetCategory, makeCtx(s1), { from: 'Food', to: 'home' });
+    expect(merge.title).toBe('Merge Food into Home');
+    const s2 = applyToSnapshot(s1, merge.ops).snap;
+    expect(s2.household.budgetCategories).not.toContain('Food');
+    expect(groceries(s2, 'Home')).toBeGreaterThanOrEqual(n);
+    const del = planAction(ACTIONS.deleteBudgetCategory, makeCtx(s2), { name: 'Other' });
+    expect(applyToSnapshot(s2, del.ops).snap.household.budgetCategories).not.toContain('Other');
+    expect(planAction(ACTIONS.addBudgetCategory, makeCtx(s2), { name: 'rent' }).blocked).toMatch(/already/);
+  });
+
+  it('keeps rows saved together in their order within a day (imports)', () => {
+    const b = year(2026, 0, {
+      contributions: [{ ...c('c1', '2026-03-01', 'a', 100), createdAt: '2026-11-01T10:00:00.002Z' }],
+      purchases: [
+        { ...p('p1', '2026-03-01', 'a', 30), createdAt: '2026-11-01T10:00:00.001Z' },
+        { ...p('p2', '2026-03-01', 'a', 20), createdAt: '2026-11-01T10:00:00.003Z' },
+      ],
+    });
+    expect(ledger([b]).map((r) => [r.id, r.balanceAfter])).toEqual([
+      ['p1', -30],
+      ['c1', 70],
+      ['p2', 50],
+    ]);
   });
 
   it('adjustments need a reason', () => {
