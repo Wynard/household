@@ -9,8 +9,7 @@ A private household app for two people, mostly used on phones and installed to t
   and a **week plan** that reserves stock meal by meal.
 - **Shopping**: one shared list, filled by hand, by low stock, by recipes and by the plan.
 - **Budget**: a shared money pot. Who put in what, and what was paid from it: an amount, a budget category (Groceries, Rent…),
-  who paid and a short description. Every entry can be edited or deleted (with undo). An old budget spreadsheet can be imported
-  (Settings › Import budget history).
+  who paid and a short description. Every entry can be edited or deleted (with undo).
 - **Insights**: monthly spending by budget category and person, and consumption, with filters and drill-down.
 - **Assistant** (parked, `features.assistant` in `src/config.ts`): talk or type, scan receipts, paste recipe links. It prepares
   changes as cards; nothing changes until someone taps **Apply**. While parked it has no buttons and Settings shows it as not

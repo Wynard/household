@@ -12,14 +12,6 @@ import type { GoogleAuth } from '../auth/google';
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 export const FOLDER_MIME = 'application/vnd.google-apps.folder';
-/** A Google Sheets spreadsheet. */
-export const SHEET_MIME = 'application/vnd.google-apps.spreadsheet';
-/** Spreadsheet files Drive can turn into a Google Sheet. */
-export const EXCEL_MIMES = [
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel',
-  'application/vnd.oasis.opendocument.spreadsheet',
-];
 
 export class AccessNeededError extends Error {
   constructor(public files: string[]) {
@@ -236,42 +228,6 @@ export class DriveAdapter implements StorageAdapter {
   async deleteImage(fileId: string): Promise<void> {
     const res = await this.req(`${API}/files/${fileId}`, { method: 'DELETE' });
     if (!res.ok && res.status !== 404) throw await driveError(res);
-  }
-
-  /** The signed-in person's token (for the Picker). */
-  token(): Promise<string> {
-    return this.auth.getToken();
-  }
-
-  /**
-   * A spreadsheet picked in Drive, as CSV text of its first sheet. Google
-   * Sheets are exported; Excel files go through a temporary Google Sheets copy
-   * (deleted right after); CSV and text files are read as they are.
-   */
-  async readSheetAsCsv(file: { id: string; mimeType: string }): Promise<string> {
-    const exportCsv = async (id: string) => {
-      const res = await this.req(`${API}/files/${encodeURIComponent(id)}/export?mimeType=text%2Fcsv`);
-      if (!res.ok) throw await driveError(res);
-      return res.text();
-    };
-    if (file.mimeType === SHEET_MIME) return exportCsv(file.id);
-    if (EXCEL_MIMES.includes(file.mimeType)) {
-      const copy = await this.json<DriveFile>(`${API}/files/${encodeURIComponent(file.id)}/copy?fields=id`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'Household import (temporary)', mimeType: SHEET_MIME }),
-      });
-      try {
-        return await exportCsv(copy.id);
-      } finally {
-        await this.req(`${API}/files/${encodeURIComponent(copy.id)}`, { method: 'DELETE' }).catch(
-          () => undefined,
-        );
-      }
-    }
-    const res = await this.req(`${API}/files/${encodeURIComponent(file.id)}?alt=media`);
-    if (!res.ok) throw await driveError(res);
-    return res.text();
   }
 
   // ---------- setup and sharing ----------

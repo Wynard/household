@@ -701,8 +701,7 @@ mark {
   font-weight: var(--fw-bold);
   font-size: var(--fs-label);
 }
-.choice[aria-pressed='true'],
-.choice[aria-checked='true'] {
+.choice[aria-pressed='true'] {
   border-color: var(--primary);
   background: var(--primary);
   color: var(--on-primary);

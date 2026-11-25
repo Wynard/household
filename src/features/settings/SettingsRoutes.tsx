@@ -13,7 +13,6 @@ import {
 } from './tables';
 import { DeviceSettings, HouseholdSettings } from './HouseholdSettings';
 import { AppearanceSettings, AssistantSettings, GeminiSettings } from './DeviceParts';
-import { BudgetImport } from './BudgetImport';
 import { features } from '../../config';
 
 /** Settings is a full-screen area (no tab bar or Assistant button). */
@@ -30,7 +29,6 @@ export function SettingsRoutes() {
       <Route path="stores" element={<StoresTable />} />
       <Route path="units" element={<UnitsTable />} />
       <Route path="budget-categories" element={<BudgetCategoriesTable />} />
-      <Route path="budget-import" element={<BudgetImport />} />
       <Route path="household" element={<HouseholdSettings />} />
       <Route
         path="device"

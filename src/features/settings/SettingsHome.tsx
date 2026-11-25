@@ -128,18 +128,13 @@ export function SettingsHome() {
           </div>
         )}
       </div>
-      <h2 className="group-title">Backup and import</h2>
+      <h2 className="group-title">Backup</h2>
       <div className="list">
         <ChevronRow title="Export everything" sub="One file with all of your data" onClick={exportAll} />
         <ChevronRow
           title="Import from a backup"
           sub="Shows what will change before replacing anything"
           onClick={() => setImporting(true)}
-        />
-        <ChevronRow
-          title="Import budget history"
-          sub="Rows from an old budget spreadsheet"
-          onClick={() => nav('/settings/budget-import')}
         />
       </div>
       {importing && <ImportSheet onClose={() => setImporting(false)} />}
